@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<h1>{{ "Welcome — set up your AMC" if is_setup else "Settings" }}</h1>
+{% if is_setup %}
+<p class="sub">Tell us your theatres and what you actually want. We'll only ever ping you about
+formats and times that match — and only for movies playing at your theatres.</p>
+{% endif %}
+
+<form method="post" class="settings">
+  <section>
+    <h2>Your theatres</h2>
+    <div id="theatres" class="checks">
+      {% for t in current %}
+      <label class="check"><input type="checkbox" name="theatres" value="{{ t.id }}" checked> {{ t.name }}
+        <span class="remove" title="Remove">✕</span></label>
+      {% endfor %}
+    </div>
+    <input type="text" id="q" class="search" placeholder="Search AMC theatres by name…" autocomplete="off">
+    <div id="results" class="checks"></div>
+  </section>
+
+  <section>
+    <h2>Formats you'll book</h2>
+    <p class="sub">Leave all unchecked to accept any format.</p>
+    <div class="chips">
+      {% for f in formats %}
+      <label class="chip"><input type="checkbox" name="formats" value="{{ f }}" {{ 'checked' if f in state.formats }}>
+        {{ m.LABELS[f] if f in m.LABELS else "Standard" }}</label>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="cols">
+    <label>Earliest showtime
+      <select name="earliest_hour">
+        {% for h in hours %}<option value="{{ h }}" {{ 'selected' if h == state.earliest_hour }}>{{ "%02d:00"|format(h) }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Party size
+      <input type="number" name="party_size" min="1" max="12" value="{{ state.party_size }}">
+    </label>
+    <label>Days to look ahead
+      <input type="number" name="lookahead_days" min="1" max="30" value="{{ state.lookahead_days }}">
+    </label>
+    <label class="check inline"><input type="checkbox" name="weekends_only" {{ 'checked' if state.weekends_only }}> Weekends only</label>
+  </section>
+
+  <button class="primary" type="submit">{{ "Get started" if is_setup else "Save preferences" }}</button>
+</form>
+
+<script>
+  const q = document.getElementById('q'), results = document.getElementById('results'), chosen = document.getElementById('theatres');
+
+  // remove a theatre by un-checking (delete its row)
+  chosen.addEventListener('click', e => {
+    const x = e.target.closest('.remove'); if (!x) return;
+    x.closest('.check').remove();
+  });
+
+  let timer;
+  q.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      if (!q.value.trim()) { results.innerHTML = ''; return; }
+      const data = await (await fetch('/api/theatres?q=' + encodeURIComponent(q.value))).json();
+      const have = new Set([...chosen.querySelectorAll('input')].map(i => i.value));
+      results.innerHTML = data.filter(t => !have.has(String(t.id))).map(t => {
+        const label = (t.name + (t.city ? ' · ' + t.city : '')).replace(/"/g, '&quot;');
+        return `<button type="button" class="add-theatre" data-id="${t.id}" data-name="${label}">+ ${label}</button>`;
+      }).join('') || '<span class="empty">No matches.</span>';
+    }, 250);
+  });
+
+  // clicking a result permanently adds it to "Your theatres" (survives further searches)
+  results.addEventListener('click', e => {
+    const b = e.target.closest('.add-theatre'); if (!b) return;
+    const label = document.createElement('label');
+    label.className = 'check';
+    label.innerHTML = `<input type="checkbox" name="theatres" value="${b.dataset.id}" checked> ${b.dataset.name} `
+      + `<span class="remove" title="Remove">✕</span>`;
+    chosen.appendChild(label);
+    b.remove();
+    q.value = '';
+    results.innerHTML = '';
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AMC Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="{{ url_for('home') }}">AMC</a>
+    <nav>
+      <a href="{{ url_for('home') }}" class="{{ 'active' if nav == 'home' }}">Tonight</a>
+      <a href="{{ url_for('movies') }}" class="{{ 'active' if nav == 'movies' }}">Movies</a>
+      <a href="{{ url_for('watchlist') }}" class="{{ 'active' if nav == 'watchlist' }}">Watchlist</a>
+      <a href="{{ url_for('settings') }}" class="{{ 'active' if nav == 'settings' }}">Settings</a>
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <script>
+    async function toggleWatch(btn, removeCard) {
+      btn.disabled = true;
+      try {
+        const r = await fetch('/toggle/' + btn.dataset.id, { method: 'POST', headers: { 'Accept': 'application/json' } });
+        const j = await r.json();
+        if (removeCard && !j.watch) { btn.closest('.card').remove(); return; }
+        btn.classList.toggle('on', j.watch);
+        btn.textContent = j.watch ? '♥' : '♡';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

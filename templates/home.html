@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<div class="board-top">
+  <h1>{{ heading }}</h1>
+  <div class="dates" id="dates">
+    {% for d in dates %}
+    <a class="datechip {{ 'active' if d.iso == selected }}" data-iso="{{ d.iso }}" href="{{ url_for('home') }}?date={{ d.iso }}">
+      <span class="dow">{{ d.dow }}</span>
+      <span class="dnum">{{ d.day }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% for t in board %}
+  <h2>{{ t.name }}</h2>
+  {% if t.movies %}
+  <div class="grid">
+    {% for movie in t.movies %}
+    <article class="card {{ 'rerelease' if movie.rerelease }}">
+      {% if movie.poster %}<a class="poster-link" href="{{ url_for('movie_detail', movie_id=movie.id) }}"><img class="poster" src="{{ movie.poster | thumb(240) }}" alt="" loading="lazy" decoding="async"></a>{% endif %}
+      <div class="card-body">
+        <h3><a class="title-link" href="{{ url_for('movie_detail', movie_id=movie.id) }}">{{ movie.title }}</a></h3>
+        {{ m.movielinks(movie.title) }}
+        {% for r in movie.shows %}{{ m.showrow(r) }}{% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">No showtimes after {{ "%02d:00"|format(state.earliest_hour) }}.</p>
+  {% endif %}
+{% endfor %}
+
+<script>
+  // Center the selected date. Animate from wherever the *previous* selection sat, so the
+  // glide direction/distance reflect how far you moved (and which way) — not always from the left.
+  (function () {
+    const strip = document.getElementById('dates');
+    const active = strip && strip.querySelector('.datechip.active');
+    if (!active) return;
+    const cur = active.dataset.iso;
+    const prev = sessionStorage.getItem('boardDate');
+    sessionStorage.setItem('boardDate', cur);
+
+    const sr = strip.getBoundingClientRect();
+    const centerLeft = chip => {
+      const cr = chip.getBoundingClientRect();
+      return strip.scrollLeft + (cr.left - sr.left) - (strip.clientWidth - cr.width) / 2;
+    };
+    const target = centerLeft(active);
+    const prevChip = prev && prev !== cur && strip.querySelector('.datechip[data-iso="' + prev + '"]');
+    if (prevChip) {
+      strip.scrollTo({ left: centerLeft(prevChip), behavior: 'auto' });   // start where we were
+      requestAnimationFrame(() => strip.scrollTo({ left: target, behavior: 'smooth' }));  // glide to selection
+    } else {
+      strip.scrollTo({ left: target, behavior: 'auto' });                 // first load: no sweep
+    }
+  })();
+</script>
+{% endblock %}

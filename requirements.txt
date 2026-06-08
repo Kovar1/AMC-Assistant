@@ -1,0 +1,2 @@
+# Runtime dependency for the web UI (app.py). The cron alerter (assistant.py) is pure stdlib.
+flask>=3.0

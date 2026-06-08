@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<a class="back" href="{{ url_for('home') }}">&larr; Back</a>
+
+<div class="detail-head {{ 'rerelease' if rerelease }}">
+  {% if poster %}<img class="detail-poster" src="{{ poster | thumb(300) }}" alt="" decoding="async">{% endif %}
+  <div class="detail-meta">
+    <h1>{{ title }}</h1>
+    {% if rerelease %}<span class="badge gold-badge">Re-release</span>{% endif %}
+    {{ m.movielinks(title) }}
+  </div>
+</div>
+
+<div class="filters">
+  <div class="filter-row">
+    <span class="filter-label">Time</span>
+    <button type="button" class="fchip time-chip active" data-range="any">Any</button>
+    <button type="button" class="fchip time-chip" data-range="lt17">Before 5 PM</button>
+    <button type="button" class="fchip time-chip" data-range="17-20">5&ndash;8 PM</button>
+    <button type="button" class="fchip time-chip" data-range="ge20">After 8 PM</button>
+  </div>
+  {% if formats %}
+  <div class="filter-row">
+    <span class="filter-label">Format</span>
+    {% for f in formats %}
+    <button type="button" class="fchip fmt-chip" data-fmt="{{ f }}">{{ m.LABELS[f] if f in m.LABELS else "Standard" }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="theatre-rows">
+  {% for t in theatres %}
+  <section class="theatre-row">
+    <h3>{{ t.name }}</h3>
+    {% if t.shows %}
+    <div class="chips">
+      {% for s in t.shows %}
+        {% if s.passed %}
+        <span class="showchip past" data-fmt="{{ s.fmt }}" data-hour="{{ s.hour }}">{{ s.when }}{% if s.fmt in m.LABELS %} &middot; {{ m.LABELS[s.fmt] }}{% endif %}</span>
+        {% else %}
+        <a class="showchip" data-fmt="{{ s.fmt }}" data-hour="{{ s.hour }}" href="{{ s.url }}" target="_blank" rel="noopener">{{ s.when }}{% if s.fmt in m.LABELS %} &middot; {{ m.LABELS[s.fmt] }}{% endif %}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <p class="empty none-msg" hidden>No showtimes match these filters.</p>
+    {% else %}
+    <p class="empty">No showtimes for this movie here.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+
+<script>
+  const timeChips = [...document.querySelectorAll('.time-chip')];
+  const fmtChips = [...document.querySelectorAll('.fmt-chip')];
+  function inRange(h, r) {
+    return r === 'any' || (r === 'lt17' && h < 17) || (r === '17-20' && h >= 17 && h < 20) || (r === 'ge20' && h >= 20);
+  }
+  function apply() {
+    const range = (document.querySelector('.time-chip.active') || {}).dataset?.range || 'any';
+    const fmts = fmtChips.filter(c => c.classList.contains('active')).map(c => c.dataset.fmt);
+    document.querySelectorAll('.theatre-row').forEach(row => {
+      let shown = 0;
+      const chips = row.querySelectorAll('.showchip');
+      chips.forEach(ch => {
+        const ok = inRange(+ch.dataset.hour, range) && (fmts.length === 0 || fmts.includes(ch.dataset.fmt));
+        ch.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      const none = row.querySelector('.none-msg');
+      if (none) none.hidden = !(chips.length > 0 && shown === 0);
+    });
+  }
+  timeChips.forEach(c => c.onclick = () => { timeChips.forEach(x => x.classList.remove('active')); c.classList.add('active'); apply(); });
+  fmtChips.forEach(c => c.onclick = () => { c.classList.toggle('active'); apply(); });
+  apply();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<h1>Movies</h1>
+<p class="sub">Tap the heart to watch a movie — you'll get a Telegram alert the moment matching
+showtimes drop at your theatres. Movies that leave AMC's listings for a week drop off automatically.</p>
+
+<input id="msearch" class="search movie-search" placeholder="Search movies…" autocomplete="off">
+
+{% macro card(mv) %}
+<article class="card poster-card" data-title="{{ (mv.name or '')|lower }}">
+  <button type="button" class="heart {{ 'on' if mv.watch }}" data-id="{{ mv.id }}"
+          onclick="toggleWatch(this)" title="{{ 'Watching' if mv.watch else 'Watch' }}">{{ '♥' if mv.watch else '♡' }}</button>
+  <a class="poster-link" href="{{ url_for('movie_detail', movie_id=mv.id) }}">
+  {% if mv.poster %}
+    <img class="poster" src="{{ mv.poster | thumb(400) }}" alt="" loading="lazy" decoding="async">
+  {% else %}
+    <div class="poster placeholder">{{ mv.name }}</div>
+  {% endif %}
+  </a>
+  <div class="card-body">
+    <h3><a class="title-link" href="{{ url_for('movie_detail', movie_id=mv.id) }}">{{ mv.name }}</a></h3>
+    {% if mv.local %}<span class="badge ok">At your theatre</span>{% endif %}
+    {% if mv.release %}<span class="meta">{{ mv.release }}</span>{% endif %}
+    {{ m.movielinks(mv.name) }}
+  </div>
+</article>
+{% endmacro %}
+
+<h2 class="sec" data-sec>Now Playing</h2>
+{% if now %}<div class="grid posters" data-grid>{% for mv in now %}{{ card(mv) }}{% endfor %}</div>
+{% else %}<p class="empty">Loading…</p>{% endif %}
+
+<h2 class="sec" data-sec>Coming Soon</h2>
+{% if soon %}<div class="grid posters" data-grid>{% for mv in soon %}{{ card(mv) }}{% endfor %}</div>
+{% else %}<p class="empty">Nothing upcoming right now.</p>{% endif %}
+
+<script>
+  const ms = document.getElementById('msearch');
+  ms.addEventListener('input', () => {
+    const q = ms.value.trim().toLowerCase();
+    document.querySelectorAll('[data-grid]').forEach(grid => {
+      let shown = 0;
+      grid.querySelectorAll('.poster-card').forEach(c => {
+        const hit = c.dataset.title.includes(q);
+        c.style.display = hit ? '' : 'none';
+        if (hit) shown++;
+      });
+      grid.previousElementSibling.style.display = shown ? '' : 'none';
+    });
+  });
+</script>
+{% endblock %}

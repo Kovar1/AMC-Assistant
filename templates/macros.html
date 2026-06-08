@@ -1,0 +1,29 @@
+{% set LABELS = {"IMAX": "IMAX", "DOLBY": "Dolby", "XL": "XL", "LASER": "Laser"} %}
+
+{% macro movielinks(title) %}
+<div class="movie-links">
+  <a class="movie-link" target="_blank" rel="noopener" title="Letterboxd"
+     href="https://letterboxd.com/search/films/{{ title|urlencode }}/">
+    <img class="movie-icon" src="{{ url_for('static', filename='letterboxd.svg') }}" alt="Letterboxd"></a>
+  <a class="movie-link" target="_blank" rel="noopener" title="Watch trailer"
+     href="https://www.youtube.com/results?search_query={{ title|urlencode }}+trailer">
+    <img class="movie-icon" src="{{ url_for('static', filename='youtube.svg') }}" alt="Trailer"></a>
+</div>
+{% endmacro %}
+
+{% macro badge(f) %}{% if f in LABELS %}<span class="badge {{ f }}">{{ LABELS[f] }}</span>{% endif %}{% endmacro %}
+
+{% macro showrow(r, theatre=False) %}
+<div class="row {{ 'past' if r.passed }}">
+  <span class="when">{{ r.when }}</span>
+  {{ badge(r.fmt) }}
+  {% if theatre %}<span class="meta">{{ r.theatre }}</span>{% endif %}
+  {% if r.passed %}
+    <span class="book book-past" title="Showtime has passed">Book</span>
+  {% elif r.sold %}
+    <span class="sold">Sold out</span>
+  {% else %}
+    <a class="book" href="{{ r.url }}" target="_blank" rel="noopener">Book</a>
+  {% endif %}
+</div>
+{% endmacro %}

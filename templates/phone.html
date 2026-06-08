@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AMC — Phone preview</title>
+  <style>
+    html, body { overflow-x: hidden; }   /* no side-to-side scrolling of the page */
+    body {
+      margin: 0; min-height: 100vh; box-sizing: border-box; padding: 28px 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: #0a0a0b; color: #e6e8ee;
+      font: 15px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .brand { font-weight: 900; font-size: 22px; color: #fff; background: #fb0102; padding: 2px 10px; border-radius: 6px; }
+    /* device picker: one row that slides on its own when it doesn't fit */
+    .controls {
+      display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%;
+      overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;
+    }
+    .controls::-webkit-scrollbar { display: none; }
+    .controls button {
+      flex: none;
+      background: #1d1f24; border: 1px solid #2a2d34; color: #e6e8ee;
+      border-radius: 999px; padding: 8px 15px; cursor: pointer; font-weight: 600; font-size: 13px;
+    }
+    .controls button:hover { border-color: #6b7280; }
+    .controls button.active { background: #fb0102; border-color: #fb0102; color: #fff; }
+    .phone {
+      background: #000; border: 2px solid #222; border-radius: 46px; padding: 14px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
+    }
+    .phone iframe {
+      display: block; width: 390px; height: 844px; border: none; border-radius: 32px; background: #0a0a0b;
+      transition: width .25s ease, height .25s ease;
+    }
+    .hint { color: #9aa0ab; font-size: 13px; text-align: center; }
+    .hint a { color: #8ab4ff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div><span class="brand">AMC</span> &nbsp;phone preview</div>
+  <div class="controls">
+    <button data-w="375" data-h="667">iPhone SE</button>
+    <button data-w="390" data-h="844" class="active">iPhone 15</button>
+    <button data-w="430" data-h="932">iPhone Max</button>
+    <button data-w="412" data-h="915">Pixel</button>
+  </div>
+  <div class="phone"><iframe id="frame" src="/" title="AMC mobile preview"></iframe></div>
+  <div class="hint">Live, interactive — click around inside the phone. &nbsp;<a href="/">Open full size &rarr;</a></div>
+
+  <script>
+    const frame = document.getElementById('frame');
+    document.querySelectorAll('.controls button').forEach(b => b.onclick = () => {
+      document.querySelectorAll('.controls button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      frame.style.width = b.dataset.w + 'px';
+      frame.style.height = b.dataset.h + 'px';
+    });
+  </script>
+</body>
+</html>

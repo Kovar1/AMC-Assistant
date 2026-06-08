@@ -1,0 +1,41 @@
+name: AMC daily alert
+
+on:
+  schedule:
+    - cron: "0 14 * * *"     # 14:00 UTC daily (~9-10am ET). Add more lines to run more often.
+  workflow_dispatch: {}        # lets you run it manually from the Actions tab
+
+# allow the job to commit the updated state.json (the dedupe memory) back to the repo
+permissions:
+  contents: write
+
+concurrency: amc-daily         # never let two runs overlap
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the alerter
+        env:
+          AMC_VENDOR_KEY: ${{ secrets.AMC_VENDOR_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python assistant.py
+
+      - name: Persist dedupe state
+        run: |
+          git config user.name "amc-bot"
+          git config user.email "amc-bot@users.noreply.github.com"
+          git add state.json
+          if git diff --staged --quiet; then
+            echo "No state change."
+          else
+            git commit -m "chore: update alert state [skip ci]"
+            git push
+          fi

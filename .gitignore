@@ -1,0 +1,9 @@
+.env
+.env.local
+*.log
+__pycache__/
+*.py[cod]
+.cache/
+.claude/
+.pytest_cache/
+dashboard.html

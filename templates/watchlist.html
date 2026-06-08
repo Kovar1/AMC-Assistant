@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<h1>Watchlist</h1>
+{% if not watch %}
+<p class="empty">Nothing watched yet. Go to <a href="{{ url_for('movies') }}">Movies</a> and tap a heart.</p>
+{% endif %}
+<div class="list">
+{% for w in watch %}
+<article class="card watch-card {{ 'rerelease' if w.rerelease }}">
+  {% if w.poster %}<a class="poster-link" href="{{ url_for('movie_detail', movie_id=w.id) }}"><img class="poster" src="{{ w.poster | thumb(240) }}" alt="" loading="lazy" decoding="async"></a>{% endif %}
+  <div class="card-body">
+    <div class="card-head">
+      <h3><a class="title-link" href="{{ url_for('movie_detail', movie_id=w.id) }}">{{ w.title }}</a></h3>
+      <button type="button" class="heart on" data-id="{{ w.id }}"
+              onclick="toggleWatch(this, true)" title="Stop watching">♥</button>
+    </div>
+    {{ m.movielinks(w.title) }}
+    {% if w.matches %}
+      <span class="badge ok">{{ w.matches }} matching</span>
+      {% for r in w.shows %}{{ m.showrow(r, theatre=True) }}{% endfor %}
+    {% else %}
+      <span class="badge wait">waiting</span>
+      <p class="empty">No matching showtimes yet{% if w.release %} · releases {{ w.release }}{% endif %}.</p>
+    {% endif %}
+  </div>
+</article>
+{% endfor %}
+</div>
+{% endblock %}
