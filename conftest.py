@@ -12,8 +12,9 @@ import core
 
 @pytest.fixture(autouse=True)
 def isolate(tmp_path, monkeypatch):
-    # never read or clobber the real state.json
+    # never read or clobber the real state.json / alerts.jsonl
     monkeypatch.setattr(core, "STATE", tmp_path / "state.json")
+    monkeypatch.setattr(core, "ALERTS", tmp_path / "alerts.jsonl")
     # never hit the AMC network; tests that need data override these per-test
     monkeypatch.setattr(amc, "movies", lambda view: [])
     monkeypatch.setattr(amc, "showtimes", lambda tid, day: [])

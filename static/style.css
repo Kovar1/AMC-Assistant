@@ -234,8 +234,10 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.6px; color: v
 @media (max-width: 560px) {
   .nav { gap: 12px; padding: 12px 14px; }
   .nav .brand { font-size: 22px; padding: 2px 8px; }
-  .nav nav { gap: 15px; }
-  .nav nav a { font-size: 14px; }
+  /* tabs slide horizontally if they don't all fit, instead of overflowing the page */
+  .nav nav { gap: 15px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav nav::-webkit-scrollbar { display: none; }
+  .nav nav a { font-size: 14px; white-space: nowrap; }
   main { padding: 20px 16px 56px; }
   .card .poster { width: 76px; }
   .book, .book-past { margin-left: auto; }   /* keep Book right-aligned even when the row wraps */

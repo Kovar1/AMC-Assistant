@@ -38,6 +38,31 @@ def save_state(state):
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
 
+# --- sent-alert log (append-only, one JSON object per line) ------------------
+
+ALERTS = Path("alerts.jsonl")
+
+
+def log_alert(record):
+    """Append one alert record. A timestamp is added automatically."""
+    record = {"ts": dt.datetime.now().isoformat(timespec="seconds"), **record}
+    with ALERTS.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def read_alerts(limit=100):
+    """Return the most recent alert records, newest first."""
+    if not ALERTS.exists():
+        return []
+    out = []
+    for line in ALERTS.read_text(encoding="utf-8").splitlines()[-limit:]:
+        try:
+            out.append(json.loads(line))
+        except Exception:  # nosec B110 - skip an unparseable log line, keep the rest
+            pass
+    return list(reversed(out))
+
+
 # --- showtime helpers -------------------------------------------------------
 
 

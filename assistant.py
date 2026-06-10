@@ -22,12 +22,13 @@ import core
 
 
 def telegram(text):
+    """Send a message. Returns True if delivered, False otherwise (incl. not configured)."""
     token, chat = os.getenv("TELEGRAM_BOT_TOKEN"), os.getenv("TELEGRAM_CHAT_ID")
     if not token or not chat:
         print(
             "\n[telegram not configured — would send]\n" + re.sub("<[^>]+>", "", text)
         )
-        return
+        return False
     body = urllib.parse.urlencode(
         {
             "chat_id": chat,
@@ -42,8 +43,10 @@ def telegram(text):
     try:
         urllib.request.urlopen(req, timeout=30)  # nosec B310 - fixed https Telegram API URL
         print("Telegram alert sent.")
+        return True
     except Exception as e:
         print(f"Telegram failed: {e}")
+        return False
 
 
 def notify(state, data):
@@ -70,14 +73,20 @@ def notify(state, data):
             lines = [
                 f"<b>{html.escape(title)}</b> just dropped at {html.escape(tname)}"
             ]
+            plain = []  # human-readable showtimes for the alert log
             for s in sorted(new, key=lambda s: s["showDateTimeLocal"])[:8]:
                 tag = core.fmt(s)
+                suffix = "" if tag == "STANDARD" else " · " + tag
+                when = core.pretty(s["showDateTimeLocal"], with_date=True)
                 lines.append(
-                    f"• {core.pretty(s['showDateTimeLocal'], with_date=True)}"
-                    f"{'' if tag == 'STANDARD' else ' · ' + tag} · Aud {s.get('auditorium', '?')} — "
+                    f"• {when}{suffix} · Aud {s.get('auditorium', '?')} — "
                     f'<a href="{s.get("purchaseUrl")}">Book</a>'
                 )
-            telegram("\n".join(lines))
+                plain.append(f"{when}{suffix}")
+            sent = telegram("\n".join(lines))
+            core.log_alert(
+                {"movie": title, "theatre": tname, "shows": plain, "sent": sent}
+            )
             state["notified"][key] = sorted(already | {s["id"] for s in new})
             alerted.append(title)
     return alerted

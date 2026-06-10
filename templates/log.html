@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Alert log</h1>
+<p class="sub">Telegram alerts the assistant has sent, newest first. Alerts fire in the cloud —
+<code>git pull</code> to see the latest.</p>
+
+{% if not alerts %}
+<p class="empty">No alerts sent yet.</p>
+{% endif %}
+
+<div class="list">
+  {% for a in alerts %}
+  <article class="card">
+    <div class="card-body">
+      <h3>{{ a.movie }}
+        {% if a.sent %}<span class="badge ok">sent</span>{% else %}<span class="badge wait">not sent</span>{% endif %}
+      </h3>
+      <span class="meta">{{ a.ts[:10] }} {{ a.ts[11:16] }} · {{ a.theatre }}</span>
+      {% for s in a.shows %}<div class="row"><span class="when">{{ s }}</span></div>{% endfor %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

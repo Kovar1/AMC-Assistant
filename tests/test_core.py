@@ -268,6 +268,19 @@ def test_build_movie_detail_groups_and_lists_present_formats():
     ]  # only formats that exist, in canonical order
 
 
+# --- alert log --------------------------------------------------------------
+
+
+def test_alert_log_roundtrip_newest_first():
+    assert core.read_alerts() == []  # nothing logged yet
+    core.log_alert({"movie": "Alpha", "theatre": "GSP", "shows": ["x"], "sent": True})
+    core.log_alert({"movie": "Beta", "theatre": "GSP", "shows": ["y"], "sent": False})
+    alerts = core.read_alerts()
+    assert [a["movie"] for a in alerts] == ["Beta", "Alpha"]  # newest first
+    assert alerts[0]["sent"] is False
+    assert "ts" in alerts[0]  # timestamp added automatically
+
+
 # --- state persistence ------------------------------------------------------
 
 

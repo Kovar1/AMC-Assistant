@@ -68,6 +68,11 @@ def phone():
     return render_template("phone.html")
 
 
+@app.route("/log")
+def log():
+    return render_template("log.html", nav="log", alerts=core.read_alerts())
+
+
 @app.route("/movie/<int:movie_id>")
 def movie_detail(movie_id):
     state = core.load_state()

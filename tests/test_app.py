@@ -53,3 +53,13 @@ def test_movie_detail_renders():
     onboard()
     r = client().get("/movie/999")
     assert r.status_code == 200
+
+
+def test_log_page_renders_with_alerts():
+    onboard()
+    core.log_alert(
+        {"movie": "Alpha", "theatre": "GSP", "shows": ["Fri · 7 PM"], "sent": True}
+    )
+    r = client().get("/log")
+    assert r.status_code == 200
+    assert b"Alpha" in r.data
