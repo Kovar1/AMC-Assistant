@@ -58,6 +58,7 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const CLOUDINARY = "amc-theatres-res.cloudinary.com/";
 export const FORMAT_ORDER: Format[] = ["IMAX", "DOLBY", "XL", "LASER", "STANDARD"];
+export const FMT_LABEL: Record<Format, string> = { IMAX: "IMAX", DOLBY: "Dolby", XL: "XL", LASER: "Laser", STANDARD: "" };
 
 export function fmt(s: Showtime): Format {
   const codes = (s.attributes ?? []).map((a) => a.code ?? "").join(" ");
