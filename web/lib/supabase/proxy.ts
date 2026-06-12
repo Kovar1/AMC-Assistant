@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { authRedirect } from "@/lib/auth-routes";
 
 /**
- * Refreshes the Supabase auth session on every request so Server Components see a
- * valid user. Route protection (redirects) is layered on in Phase 3 once the
- * login/signup pages exist.
+ * Refreshes the Supabase session on every request and applies the optimistic route guard.
+ * (Next.js 16 "proxy" — formerly "middleware".) Real authorization still happens in
+ * pages/Server Actions; the proxy is a first-line redirect only.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -30,8 +31,23 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Touch the session so expired tokens get refreshed into the response cookies.
-  await supabase.auth.getUser();
+  // IMPORTANT: don't run code between createServerClient and getUser().
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const dest = authRedirect(request.nextUrl.pathname, !!user);
+  if (dest) {
+    const url = request.nextUrl.clone();
+    url.pathname = dest;
+    url.search = "";
+    const redirectResponse = NextResponse.redirect(url);
+    // carry over any refreshed auth cookies so the session isn't lost on redirect
+    supabaseResponse.cookies
+      .getAll()
+      .forEach((c) => redirectResponse.cookies.set(c));
+    return redirectResponse;
+  }
 
   return supabaseResponse;
 }
