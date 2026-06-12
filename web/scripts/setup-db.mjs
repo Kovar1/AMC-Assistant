@@ -1,0 +1,96 @@
+// Applies supabase/migrations/*.sql to SUPABASE_DB_URL, then verifies the schema/RLS/triggers.
+// Run: node --env-file=.env.local scripts/setup-db.mjs
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import pg from "pg";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIGRATIONS = join(here, "..", "supabase", "migrations");
+const TABLES = ["profiles", "preferences", "watchlist", "allowed_users"];
+const tick = (b) => (b ? "✓" : "✗");
+
+const url = process.env.SUPABASE_DB_URL;
+if (!url) {
+  console.error("SUPABASE_DB_URL not set. Run: node --env-file=.env.local scripts/setup-db.mjs");
+  process.exit(1);
+}
+if (url.includes("[YOUR-PASSWORD]")) {
+  console.error("SUPABASE_DB_URL still has the [YOUR-PASSWORD] placeholder — set your DB password in .env.local.");
+  process.exit(1);
+}
+
+const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+
+async function main() {
+  await client.connect();
+  console.log("Connected to Postgres.\n");
+
+  // ---- apply migrations (each file in its own transaction) ----
+  for (const f of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
+    process.stdout.write(`Applying ${f} ... `);
+    try {
+      await client.query("begin");
+      await client.query(readFileSync(join(MIGRATIONS, f), "utf8"));
+      await client.query("commit");
+      console.log("done");
+    } catch (e) {
+      await client.query("rollback");
+      console.error("FAILED\n  " + e.message);
+      process.exit(1);
+    }
+  }
+
+  // ---- verify ----
+  let pass = true;
+  const check = (label, cond) => {
+    pass = pass && cond;
+    console.log(`  ${tick(cond)} ${label}`);
+  };
+  console.log("\nVerification:");
+
+  const tables = new Set(
+    (await client.query(
+      "select table_name from information_schema.tables where table_schema='public' and table_name = any($1)",
+      [TABLES],
+    )).rows.map((r) => r.table_name),
+  );
+  const rls = new Map(
+    (await client.query(
+      "select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname = any($1)",
+      [TABLES],
+    )).rows.map((r) => [r.relname, r.relrowsecurity]),
+  );
+  const policies = new Map(
+    (await client.query(
+      "select tablename, count(*)::int n from pg_policies where schemaname='public' group by tablename",
+    )).rows.map((r) => [r.tablename, r.n]),
+  );
+  const funcs = new Set(
+    (await client.query(
+      "select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname = any($1)",
+      [["handle_new_user", "touch_updated_at"]],
+    )).rows.map((r) => r.proname),
+  );
+  const trigger = (await client.query(
+    "select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='auth' and c.relname='users' and t.tgname='on_auth_user_created'",
+  )).rowCount;
+
+  for (const t of TABLES) check(`table public.${t}`, tables.has(t));
+  for (const t of TABLES) check(`RLS enabled on ${t}`, rls.get(t) === true);
+  for (const t of ["profiles", "preferences", "watchlist"]) check(`${t} has policies`, (policies.get(t) || 0) > 0);
+  check("allowed_users locked (0 policies)", (policies.get("allowed_users") || 0) === 0);
+  check("trigger on_auth_user_created on auth.users", trigger > 0);
+  check("function handle_new_user()", funcs.has("handle_new_user"));
+  check("function touch_updated_at()", funcs.has("touch_updated_at"));
+
+  await client.end();
+  console.log("\n" + (pass ? "ALL CHECKS PASSED — DB is set up correctly." : "SOME CHECKS FAILED."));
+  process.exit(pass ? 0 : 1);
+}
+
+main().catch(async (e) => {
+  console.error("Error:", e.message);
+  try { await client.end(); } catch {}
+  process.exit(1);
+});
