@@ -25,15 +25,23 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
   }
 
   const supabase = await createClient();
+
+  // Friendly pre-check; the BEFORE INSERT trigger on auth.users is the real enforcement.
+  const { data: allowed } = await supabase.rpc("invite_check", { check_email: email });
+  if (allowed === false) return { error: "That email isn't on the invite list yet." };
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { emailRedirectTo: `${SITE}/auth/confirm?next=/` },
   });
   if (error) {
-    // The Phase 5 invite trigger raises here for non-allowlisted emails.
     if (/allow|invite|not.*permitted/i.test(error.message)) {
       return { error: "That email isn't on the invite list yet." };
+    }
+    // GoTrue wraps trigger exceptions (invite list, user cap) as a generic DB error.
+    if (/database error/i.test(error.message)) {
+      return { error: "Signup was blocked by the server. If you were invited, contact the admin." };
     }
     return { error: error.message };
   }

@@ -69,20 +69,25 @@ async function main() {
   const funcs = new Set(
     (await client.query(
       "select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname = any($1)",
-      [["handle_new_user", "touch_updated_at"]],
+      [["handle_new_user", "touch_updated_at", "invite_check", "enforce_invite_only"]],
     )).rows.map((r) => r.proname),
   );
-  const trigger = (await client.query(
-    "select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='auth' and c.relname='users' and t.tgname='on_auth_user_created'",
-  )).rowCount;
+  const triggers = new Set(
+    (await client.query(
+      "select t.tgname from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='auth' and c.relname='users'",
+    )).rows.map((r) => r.tgname),
+  );
 
   for (const t of TABLES) check(`table public.${t}`, tables.has(t));
   for (const t of TABLES) check(`RLS enabled on ${t}`, rls.get(t) === true);
   for (const t of ["profiles", "preferences", "watchlist"]) check(`${t} has policies`, (policies.get(t) || 0) > 0);
   check("allowed_users locked (0 policies)", (policies.get("allowed_users") || 0) === 0);
-  check("trigger on_auth_user_created on auth.users", trigger > 0);
+  check("trigger on_auth_user_created on auth.users", triggers.has("on_auth_user_created"));
+  check("trigger before_user_invite_check on auth.users", triggers.has("before_user_invite_check"));
   check("function handle_new_user()", funcs.has("handle_new_user"));
   check("function touch_updated_at()", funcs.has("touch_updated_at"));
+  check("function invite_check()", funcs.has("invite_check"));
+  check("function enforce_invite_only()", funcs.has("enforce_invite_only"));
 
   await client.end();
   console.log("\n" + (pass ? "ALL CHECKS PASSED — DB is set up correctly." : "SOME CHECKS FAILED."));
