@@ -1,0 +1,58 @@
+.auth {
+  max-width: 360px;
+  margin: 64px auto;
+  padding: 0 16px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.auth h1 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+}
+.field:focus {
+  outline: none;
+  border-color: #fb0102;
+}
+.button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #fb0102;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.error {
+  color: #c0260a;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+.message {
+  color: #15803d;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+.muted {
+  color: #64748b;
+  font-size: 14px;
+  margin-top: 16px;
+}
+.muted a {
+  color: #2563eb;
+  text-decoration: none;
+}

@@ -1,0 +1,233 @@
+:root {
+  color-scheme: dark;
+  --amc: #fb0102;
+  --amc-dark: #c10002;
+  --bg: #0a0a0b;
+  --surface: #151619;
+  --surface-2: #1d1f24;
+  --line: #2a2d34;
+  --text: #f2f3f5;
+  --muted: #9aa0ab;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ---- Nav ---- */
+.nav {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 28px;
+  padding: 14px 24px;
+  background: rgba(10, 10, 11, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-weight: 900; font-size: 26px; letter-spacing: -1px;
+  color: #fff; background: var(--amc);
+  padding: 2px 10px; border-radius: 6px;
+}
+.nav nav { display: flex; gap: 22px; align-items: center; }
+.nav nav a { color: var(--muted); font-weight: 600; font-size: 15px; padding: 4px 0; border-bottom: 2px solid transparent; }
+.nav nav a:hover { color: var(--text); }
+.nav nav a.active { color: #fff; border-bottom-color: var(--amc); }
+.nav .logout { margin-left: auto; }
+.nav .logout button {
+  background: none; border: 1px solid var(--line); color: var(--muted);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.nav .logout button:hover { color: var(--text); border-color: var(--muted); }
+
+/* ---- Layout ---- */
+main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 64px; }
+h1 { font-size: 30px; letter-spacing: -.5px; margin: 8px 0 6px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--muted); margin: 34px 0 14px; }
+.sub { color: var(--muted); max-width: 640px; margin: 0 0 8px; }
+.empty { color: var(--muted); font-style: italic; }
+
+/* Date switcher */
+.board-top { text-align: center; }
+.board-top h1 { margin-bottom: 14px; }
+.dates { display: flex; gap: 8px; overflow-x: auto; padding: 6px 0 20px; scrollbar-width: none; }
+.dates::-webkit-scrollbar { display: none; }
+.dates::before, .dates::after { content: ""; flex: 0 0 50%; }
+.datechip {
+  flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 64px; padding: 8px 12px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  transition: transform .2s ease, background .2s ease, border-color .2s ease;
+}
+.datechip:hover { border-color: var(--muted); }
+.datechip.active { background: var(--amc); border-color: var(--amc); transform: scale(1.08); }
+.datechip .dow { font-size: 12px; font-weight: 700; color: var(--muted); }
+.datechip .dnum { font-size: 14px; font-weight: 700; color: var(--text); }
+.datechip.active .dow, .datechip.active .dnum { color: #fff; }
+
+/* Letterboxd + trailer links */
+.movie-links { display: flex; gap: 10px; align-items: center; margin: 4px 0 10px; }
+.movie-link { display: inline-flex; opacity: .92; transition: opacity .15s ease, transform .15s ease; }
+.movie-link:hover { opacity: 1; transform: scale(1.1); }
+.movie-icon { height: 15px; width: auto; display: block; }
+
+/* ---- Movie detail page ---- */
+.back { display: inline-block; color: var(--muted); margin-bottom: 16px; }
+.back:hover { color: var(--text); }
+.detail-head {
+  display: flex; gap: 22px; align-items: center; justify-content: center;
+  max-width: 720px; margin: 0 auto 6px; padding: 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+}
+.detail-head.rerelease { border-color: #e8b923; box-shadow: 0 0 0 1px #e8b923, 0 0 14px rgba(232, 185, 35, 0.22); }
+.detail-poster { width: 120px; flex: none; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 10px; }
+.detail-meta h1 { margin: 0 0 8px; }
+.gold-badge { background: #3a2f10; color: #e8b923; display: inline-block; margin-bottom: 8px; }
+
+.filters { max-width: 720px; margin: 20px auto; display: flex; flex-direction: column; gap: 10px; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.filter-label { color: var(--muted); font-size: 13px; min-width: 56px; text-align: right; }
+.fchip {
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.fchip:hover { border-color: var(--muted); }
+.fchip.active { background: var(--amc); border-color: var(--amc); color: #fff; }
+
+.theatre-rows { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.theatre-row { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; text-align: center; }
+.theatre-row h3 { margin: 0 0 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.showchip {
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.showchip:hover { border-color: var(--amc); }
+.showchip.past { opacity: .4; text-decoration: line-through; pointer-events: none; }
+
+/* ---- Grids ---- */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.grid.posters { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 18px; }
+.list { display: flex; flex-direction: column; gap: 16px; max-width: 640px; }
+
+/* ---- Cards (board / watchlist) ---- */
+.card { display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.card .poster { width: 96px; flex: none; align-self: flex-start; height: auto; aspect-ratio: 2 / 3; object-fit: cover; background: var(--surface-2); }
+.card.rerelease { border-color: #e8b923; box-shadow: 0 0 0 1px #e8b923, 0 0 14px rgba(232, 185, 35, 0.22); }
+.poster-link { display: contents; cursor: pointer; }
+.title-link { color: inherit; }
+.title-link:hover { color: var(--amc); }
+.card-body { padding: 14px 16px 14px 0; min-width: 0; flex: 1; }
+.card h3 { margin: 2px 0 10px; font-size: 17px; }
+
+/* ---- Showtime rows ---- */
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.row:first-of-type { border-top: none; }
+.when { color: #d7dae0; flex: none; font-variant-numeric: tabular-nums; }
+.meta { flex: 0 1 auto; min-width: 0; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book {
+  flex: none; margin-left: auto; font-weight: 700; font-size: 13px; white-space: nowrap;
+  background: var(--amc); color: #fff; padding: 5px 14px; border-radius: 999px;
+}
+.book:hover { background: var(--amc-dark); }
+.sold { flex: none; margin-left: auto; color: #ff7a7a; font-size: 13px; }
+.row.past { opacity: 0.4; }
+.row.past .when { text-decoration: line-through; }
+.book-past {
+  flex: none; margin-left: auto; font-size: 13px; font-weight: 700; white-space: nowrap;
+  padding: 5px 14px; border-radius: 999px; background: var(--surface-2); color: var(--muted);
+  text-decoration: line-through; cursor: default; pointer-events: none;
+}
+
+/* ---- Format badges ---- */
+.badge { flex: none; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; letter-spacing: .3px; }
+.badge.IMAX  { background: #10314a; color: #7cc4ff; }
+.badge.DOLBY { background: #3a1330; color: #ff86d4; }
+.badge.XL    { background: #13361f; color: #74e08e; }
+.badge.LASER { background: #3a2a10; color: #ffc46b; }
+.badge.ok    { background: #13361f; color: #74e08e; }
+.badge.wait  { background: #2a2f3e; color: #9aa2b8; }
+
+/* ---- Movie poster cards (selection grid) ---- */
+.poster-card { display: block; position: relative; }
+.poster-card .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block; }
+.poster-card .poster.placeholder {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 12px; font-size: 13px; color: var(--muted); background: var(--surface-2);
+}
+.poster-card .card-body { padding: 10px 12px 14px; }
+.poster-card h3 { font-size: 14px; margin: 0 0 4px; }
+.poster-card .badge { display: inline-block; margin-bottom: 4px; }
+.poster-card .meta { display: block; }
+
+.heart {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 36px; height: 36px; border-radius: 999px; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; background: rgba(0, 0, 0, 0.55); color: #fff;
+}
+.heart:hover { background: rgba(0, 0, 0, 0.8); }
+.heart.on { background: var(--amc); color: #fff; }
+.heart:disabled { opacity: .6; cursor: default; }
+
+.watch-card .card-head { display: flex; align-items: flex-start; gap: 10px; }
+.watch-card .card-head h3 { flex: 1; }
+.watch-card .heart { position: static; width: 32px; height: 32px; font-size: 16px; background: var(--amc); }
+.watch-card .badge { display: inline-block; margin-bottom: 8px; }
+
+/* ---- Settings form ---- */
+.settings { max-width: 680px; }
+.settings section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; }
+.settings h2 { margin-top: 0; }
+.checks { display: flex; flex-direction: column; gap: 8px; }
+.check { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
+.check.inline { margin-top: 8px; }
+.search {
+  width: 100%; margin-top: 12px; padding: 11px 14px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); font-size: 15px;
+}
+.search:focus { outline: none; border-color: var(--amc); }
+.results { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.add-theatre {
+  text-align: left; cursor: pointer; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--line);
+  padding: 9px 13px; border-radius: 10px; font-size: 14px;
+}
+.add-theatre:hover { border-color: var(--amc); }
+.remove { cursor: pointer; color: var(--muted); font-size: 12px; padding: 0 4px; background: none; border: none; }
+.remove:hover { color: var(--amc); }
+.format-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+}
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.cols label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 14px; }
+.cols select, .cols input[type="number"] {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); padding: 10px 12px; font-size: 15px;
+}
+.primary {
+  background: var(--amc); color: #fff; border: none; cursor: pointer;
+  font-size: 16px; font-weight: 800; padding: 13px 26px; border-radius: 999px;
+}
+.primary:hover { background: var(--amc-dark); }
+
+@media (max-width: 560px) {
+  .nav { gap: 12px; padding: 12px 14px; }
+  .nav .brand { font-size: 22px; padding: 2px 8px; }
+  .nav nav { gap: 15px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav nav::-webkit-scrollbar { display: none; }
+  .nav nav a { font-size: 14px; white-space: nowrap; }
+  main { padding: 20px 16px 56px; }
+  .card .poster { width: 76px; }
+  .book, .book-past { margin-left: auto; }
+}
