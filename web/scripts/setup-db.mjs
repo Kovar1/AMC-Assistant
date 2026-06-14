@@ -7,7 +7,7 @@ import pg from "pg";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = join(here, "..", "supabase", "migrations");
-const TABLES = ["profiles", "preferences", "watchlist", "allowed_users"];
+const TABLES = ["profiles", "preferences", "watchlist", "allowed_users", "telegram_link_tokens", "notified", "alerts"];
 const tick = (b) => (b ? "✓" : "✗");
 
 const url = process.env.SUPABASE_DB_URL;
@@ -69,7 +69,7 @@ async function main() {
   const funcs = new Set(
     (await client.query(
       "select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname = any($1)",
-      [["handle_new_user", "touch_updated_at", "invite_check", "enforce_invite_only"]],
+      [["handle_new_user", "touch_updated_at", "invite_check", "enforce_invite_only", "guard_profile_role"]],
     )).rows.map((r) => r.proname),
   );
   const triggers = new Set(
@@ -77,17 +77,24 @@ async function main() {
       "select t.tgname from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='auth' and c.relname='users'",
     )).rows.map((r) => r.tgname),
   );
+  const profTriggers = new Set(
+    (await client.query(
+      "select t.tgname from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles'",
+    )).rows.map((r) => r.tgname),
+  );
 
   for (const t of TABLES) check(`table public.${t}`, tables.has(t));
   for (const t of TABLES) check(`RLS enabled on ${t}`, rls.get(t) === true);
-  for (const t of ["profiles", "preferences", "watchlist"]) check(`${t} has policies`, (policies.get(t) || 0) > 0);
-  check("allowed_users locked (0 policies)", (policies.get("allowed_users") || 0) === 0);
+  for (const t of ["profiles", "preferences", "watchlist", "telegram_link_tokens", "alerts"]) check(`${t} has policies`, (policies.get(t) || 0) > 0);
+  for (const t of ["allowed_users", "notified"]) check(`${t} locked (0 policies)`, (policies.get(t) || 0) === 0);
   check("trigger on_auth_user_created on auth.users", triggers.has("on_auth_user_created"));
   check("trigger before_user_invite_check on auth.users", triggers.has("before_user_invite_check"));
+  check("trigger profiles_guard_role on profiles", profTriggers.has("profiles_guard_role"));
   check("function handle_new_user()", funcs.has("handle_new_user"));
   check("function touch_updated_at()", funcs.has("touch_updated_at"));
   check("function invite_check()", funcs.has("invite_check"));
   check("function enforce_invite_only()", funcs.has("enforce_invite_only"));
+  check("function guard_profile_role()", funcs.has("guard_profile_role"));
 
   await client.end();
   console.log("\n" + (pass ? "ALL CHECKS PASSED — DB is set up correctly." : "SOME CHECKS FAILED."));

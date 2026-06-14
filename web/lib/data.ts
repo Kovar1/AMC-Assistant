@@ -23,6 +23,12 @@ export async function requireUserId(): Promise<string> {
   return data.user.id;
 }
 
+export async function getProfile(): Promise<{ telegramLinked: boolean }> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("telegram_chat_id").maybeSingle();
+  return { telegramLinked: !!data?.telegram_chat_id };
+}
+
 export async function getPrefs(): Promise<Prefs> {
   const supabase = await createClient();
   const { data } = await supabase.from("preferences").select("*").maybeSingle();
