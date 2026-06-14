@@ -221,6 +221,20 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.6px; color: v
 }
 .primary:hover { background: var(--amc-dark); }
 
+/* ---- Telegram connect ---- */
+.tg-connect {
+  background: var(--amc); color: #fff; border: none; cursor: pointer;
+  font-size: 14px; font-weight: 700; padding: 10px 20px; border-radius: 999px; margin-top: 4px;
+}
+.tg-connect:hover { background: var(--amc-dark); }
+.tg-unlink {
+  background: none; border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+  font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 999px; margin-top: 4px;
+}
+.tg-unlink:hover { color: var(--amc); border-color: var(--amc); }
+.tg-connect:disabled, .tg-unlink:disabled { opacity: .6; cursor: default; }
+.error { color: #ff7a7a; margin-top: 10px; }
+
 @media (max-width: 560px) {
   .nav { gap: 12px; padding: 12px 14px; }
   .nav .brand { font-size: 22px; padding: 2px 8px; }

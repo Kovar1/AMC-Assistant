@@ -23,6 +23,31 @@ export async function requireUserId(): Promise<string> {
   return data.user.id;
 }
 
+export async function getProfile(): Promise<{ telegramLinked: boolean }> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("telegram_chat_id").maybeSingle();
+  return { telegramLinked: !!data?.telegram_chat_id };
+}
+
+export type AlertRow = {
+  id: string;
+  movie_name: string | null;
+  theatre_name: string | null;
+  shows: string[];
+  sent: boolean;
+  created_at: string;
+};
+
+export async function getAlerts(): Promise<AlertRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("alerts")
+    .select("id, movie_name, theatre_name, shows, sent, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data ?? []) as AlertRow[];
+}
+
 export async function getPrefs(): Promise<Prefs> {
   const supabase = await createClient();
   const { data } = await supabase.from("preferences").select("*").maybeSingle();

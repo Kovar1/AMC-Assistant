@@ -1,0 +1,24 @@
+name: AMC alerts
+
+# The new-stack replacement for the old daily state.json cron. Pings the deployed alerter
+# endpoint, which fans out per-user Telegram drop-alerts. Logic + secrets live in the app;
+# this workflow is just a clock.
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes (UTC); GitHub may delay under load
+  workflow_dispatch: {}        # manual run button in the Actions tab
+
+concurrency: amc-alerts        # never let two runs overlap
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the alerter
+        run: |
+          code=$(curl -sS -o /tmp/out -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SITE_URL }}/api/cron/alerts")
+          echo "HTTP $code"
+          cat /tmp/out; echo
+          test "$code" = "200"

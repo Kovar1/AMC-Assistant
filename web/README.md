@@ -74,8 +74,16 @@ CI (`.github/workflows/ci.yml`) runs lint + typecheck + tests on every push and 
 6. Production deploys from `main`; every PR gets a preview URL. Preview deploys share the
    production Supabase project — signup stays invite-gated there too.
 
-## Phase 8 (planned)
+## Telegram alerts
 
-Per-user Telegram alerts: a `t.me` deep-link flow stores each user's chat id in
-`profiles.telegram_chat_id`, and a scheduled job (Vercel Cron or Supabase Edge Function,
-service role) sends drop-alerts per user. Replaces the old single-user GitHub Actions cron.
+Per-user drop-alerts: Settings → **Connect Telegram** links your chat (bot **@TheAMCmoviebot**),
+then [alerts.yml](../.github/workflows/alerts.yml) pings `/api/cron/alerts` every 15 min to send
+each user one alert per new watchlist showtime that matches their prefs.
+
+To enable in production:
+
+1. Vercel env (Production): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `CRON_SECRET`,
+   `SUPABASE_SERVICE_ROLE_KEY` — then redeploy.
+2. GitHub → repo Secrets: `CRON_SECRET` (same value) and `SITE_URL` (your Vercel URL).
+3. Register the webhook once:
+   `node --env-file=.env.local scripts/set-telegram-webhook.mjs https://yourapp.vercel.app`
