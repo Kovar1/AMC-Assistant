@@ -221,6 +221,15 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.6px; color: v
 }
 .primary:hover { background: var(--amc-dark); }
 
+/* ---- Admin panel ---- */
+.admin-table { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 24px; font-size: 14px; }
+.admin-row { display: grid; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.admin-table.cols4 .admin-row { grid-template-columns: 2fr 1.5fr 1.5fr 0.4fr; }
+.admin-table.cols3 .admin-row { grid-template-columns: 2fr 1.5fr 1fr; }
+.admin-row:first-child { border-top: none; }
+.admin-head { background: var(--surface); color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.admin-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---- Telegram connect ---- */
 .tg-connect {
   background: var(--amc); color: #fff; border: none; cursor: pointer;
