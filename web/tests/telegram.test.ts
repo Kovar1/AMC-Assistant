@@ -144,6 +144,11 @@ describe.skipIf(!live)("P8a: telegram webhook + link security", () => {
     expect(r.error).not.toBeNull();
   });
 
+  it("a user can read their own alerts (grant + policy for the Alerts page)", async () => {
+    const r = await authed.from("alerts").select("id");
+    expect(r.error).toBeNull();
+  });
+
   it("role guard: a user cannot escalate their own role", async () => {
     const r = await authed.from("profiles").update({ role: "admin" }).eq("id", userId);
     expect(r.error).not.toBeNull();
