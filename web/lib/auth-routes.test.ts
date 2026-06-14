@@ -24,6 +24,14 @@ describe("authRedirect", () => {
     expect(authRedirect("/watchlist", true)).toBeNull();
   });
 
+  it("never redirects API routes (they do their own auth)", () => {
+    // both branches: a webhook/cron call has no session, an in-app fetch does
+    expect(authRedirect("/api/cron/alerts", false)).toBeNull();
+    expect(authRedirect("/api/telegram/webhook", false)).toBeNull();
+    expect(authRedirect("/api/theatres", false)).toBeNull();
+    expect(authRedirect("/api/theatres", true)).toBeNull();
+  });
+
   it("matches public prefixes on path boundaries only", () => {
     expect(isPublicPath("/login")).toBe(true);
     expect(isPublicPath("/login/whatever")).toBe(true);

@@ -6,4 +6,3 @@ __pycache__/
 .cache/
 .claude/
 .pytest_cache/
-dashboard.html
