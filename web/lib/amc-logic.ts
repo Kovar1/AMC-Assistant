@@ -142,6 +142,11 @@ export function buildCatalog(feeds: Movie[][]): Map<number, MovieMeta> {
   return cat;
 }
 
+function isRerelease(release: string | undefined, now: string): boolean {
+  if (!release) return false;
+  return new Date(now).getTime() - new Date(release).getTime() > 365 * 86400000;
+}
+
 /** At-your-theatre first (1000 tier), then popularity score, +0.15 fan-fave, -0.15 international. */
 export function relevanceScore(meta: MovieMeta | undefined, id: number, localIds: Set<number>): number {
   let score = meta?.score ?? 0;
@@ -187,7 +192,7 @@ export function buildBoard(
         id: g.mid,
         title: g.title,
         poster: meta?.poster ?? "",
-        rerelease: !!meta?.fanfave,
+        rerelease: isRerelease(meta?.release, now),
         shows: g.shows.map((s) => showRow(s, { now })),
       };
     });
@@ -233,7 +238,7 @@ export function buildWatch(
       title: meta?.name ?? hits[0]?.s.movieName ?? `Movie ${mid}`,
       poster: meta?.poster ?? "",
       release: meta?.release ?? "",
-      rerelease: !!meta?.fanfave,
+      rerelease: isRerelease(meta?.release, now),
       matches: hits.length,
       shows,
     };
@@ -266,7 +271,7 @@ export function buildMovieDetail(
     movieId,
     title: title || `Movie ${movieId}`,
     poster: meta?.poster ?? "",
-    rerelease: !!meta?.fanfave,
+    rerelease: isRerelease(meta?.release, now),
     theatres,
     formats: FORMAT_ORDER.filter((f) => present.has(f)),
   };
