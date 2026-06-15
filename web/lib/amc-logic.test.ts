@@ -110,7 +110,10 @@ describe("showRow.passed", () => {
 describe("buildBoard", () => {
   it("groups, filters by earliest_hour, and ranks by popularity", () => {
     const p = prefs({ theatres: [{ id: 2253, name: "GSP" }] });
-    const cat = buildCatalog([[movie({ id: 10, score: 0.1 }), movie({ id: 20, score: 0, attributes: [{ code: "FANFAVES" }] })]]);
+    const cat = buildCatalog([[
+      movie({ id: 10, score: 0.1 }),
+      movie({ id: 20, score: 0, attributes: [{ code: "FANFAVES" }], releaseDateUtc: "2010-01-01T00:00:00" }),
+    ]]);
     const day = "2030-01-01";
     const data = new Map<number, Showtime[]>([
       [2253, [
