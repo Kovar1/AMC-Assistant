@@ -117,6 +117,22 @@ the Next docs it is equivalent to setting every `fetch` to `{ cache: 'no-store',
 0 } }` — which would disable the Data Cache in `lib/amc.ts` and hit AMC on *every* request. That
 cache is the only thing protecting the vendor key's quota on a public endpoint.
 
+### Caching, and why the response header looks wrong
+
+Two layers protect the AMC vendor key's quota on this public route: Vercel's edge cache and the
+Next fetch Data Cache in `lib/amc.ts` (showtimes revalidate every 600s).
+
+The handler sends `Cache-Control: public, s-maxage=60|300, stale-while-revalidate=...`, but
+**Vercel consumes the `s-maxage` directive for its CDN and rewrites the client-facing header to a
+bare `Cache-Control: public`.** That is expected, not a regression. Confirm the cache is working by
+repeating a request and watching the response headers instead:
+
+```bash
+curl -sD- -o /dev/null "https://amc-assistant.vercel.app/api/showtimes?theatre=2253&after=none" | grep -i "x-vercel-cache\|age"
+```
+
+`X-Vercel-Cache: HIT` with a rising `Age` means it's working.
+
 ### The proxy skips this route
 
 `lib/auth-routes.ts` lists `/api/showtimes`, `/api/cron` and `/api/telegram` as sessionless, and
