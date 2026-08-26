@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authRedirect, isPublicPath } from "./auth-routes";
+import { authRedirect, isPublicPath, isSessionlessApiPath } from "./auth-routes";
 
 describe("authRedirect", () => {
   it("sends logged-out users from protected pages to /login", () => {
@@ -37,5 +37,33 @@ describe("authRedirect", () => {
     expect(isPublicPath("/login/whatever")).toBe(true);
     expect(isPublicPath("/loginx")).toBe(false);
     expect(isPublicPath("/auth/confirm")).toBe(true);
+  });
+});
+
+describe("isSessionlessApiPath", () => {
+  it("covers the routes that authenticate themselves", () => {
+    expect(isSessionlessApiPath("/api/showtimes")).toBe(true);
+    expect(isSessionlessApiPath("/api/cron/alerts")).toBe(true);
+    expect(isSessionlessApiPath("/api/telegram/webhook")).toBe(true);
+  });
+
+  it("excludes /api/theatres, which reads the session and needs the cookie refreshed", () => {
+    expect(isSessionlessApiPath("/api/theatres")).toBe(false);
+  });
+
+  it("excludes page routes", () => {
+    expect(isSessionlessApiPath("/")).toBe(false);
+    expect(isSessionlessApiPath("/settings")).toBe(false);
+  });
+
+  it("matches on a path boundary, not a bare prefix", () => {
+    expect(isSessionlessApiPath("/api/showtimes-private")).toBe(false);
+    expect(isSessionlessApiPath("/api/showtimes/anything")).toBe(true);
+  });
+
+  it("never contradicts authRedirect, which already passes all /api through", () => {
+    for (const p of ["/api/showtimes", "/api/cron/alerts", "/api/telegram/webhook"]) {
+      expect(authRedirect(p, false)).toBeNull();
+    }
   });
 });

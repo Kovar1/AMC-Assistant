@@ -8,6 +8,17 @@ const UA =
 
 type Page<T> = { _embedded?: Record<string, T[]>; _links?: { next?: { href?: string } } };
 
+/** Carries the HTTP status so callers can tell "404, nothing scheduled" from "AMC is down". */
+export class AmcHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    path: string,
+  ) {
+    super(`AMC ${status} for ${path}`);
+    this.name = "AmcHttpError";
+  }
+}
+
 async function get(path: string, revalidate: number): Promise<unknown> {
   const key = process.env.AMC_VENDOR_KEY;
   if (!key) throw new Error("AMC_VENDOR_KEY is not set");
@@ -16,7 +27,7 @@ async function get(path: string, revalidate: number): Promise<unknown> {
     headers: { Accept: "application/json", "User-Agent": UA, "X-AMC-Vendor-Key": key },
     next: { revalidate },
   });
-  if (!res.ok) throw new Error(`AMC ${res.status} for ${path}`);
+  if (!res.ok) throw new AmcHttpError(res.status, path);
   return res.json();
 }
 
@@ -52,6 +63,52 @@ export function searchTheatres(name: string): Promise<{ id: number; name: string
 export function catalogFeeds(): Promise<Movie[][]> {
   const views = ["now-playing", "coming-soon", "advance"] as const;
   return Promise.all(views.map((v) => movies(v).catch(() => [] as Movie[])));
+}
+
+/**
+ * Per-theatre outcome that keeps failure distinguishable from emptiness. `fetchShowtimes` below
+ * collapses both to [] via `.catch(() => {})`, which is fine for the board (a missing theatre just
+ * renders empty) but wrong for the public API, where "nothing is playing" and "we could not find
+ * out" must never be reported as the same thing.
+ */
+export type ShowtimesOutcome =
+  | { ok: true; showtimes: Showtime[] }
+  | { ok: false; status: number | null; message: string };
+
+/**
+ * Showtimes for several theatre ids × dates in parallel, reporting per-theatre success. Ids are
+ * deduped first: route handlers do not memoize `fetch`, so a repeated id would otherwise issue a
+ * second real request and double up that theatre's showtimes.
+ */
+export async function fetchShowtimesDetailed(
+  theatreIds: number[],
+  dates: string[],
+): Promise<Map<number, ShowtimesOutcome>> {
+  const ids = [...new Set(theatreIds)];
+  const out = new Map<number, ShowtimesOutcome>(ids.map((id) => [id, { ok: true, showtimes: [] }]));
+  await Promise.all(
+    ids.flatMap((id) =>
+      dates.map(async (d) => {
+        try {
+          const list = await showtimes(id, d);
+          const cur = out.get(id)!;
+          if (cur.ok) cur.showtimes.push(...list);
+        } catch (e) {
+          // 404 is AMC's way of saying "nothing scheduled that day" — a real, empty answer.
+          if (e instanceof AmcHttpError && e.status === 404) return;
+          const status = e instanceof AmcHttpError ? e.status : null;
+          out.set(id, {
+            ok: false,
+            status,
+            message: status
+              ? `the AMC API returned ${status} for this theatre`
+              : `the AMC API request failed for this theatre`,
+          });
+        }
+      }),
+    ),
+  );
+  return out;
 }
 
 /** Showtimes for several theatres × dates in parallel. 404 (no showtimes that day) -> []. */
