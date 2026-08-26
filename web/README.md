@@ -74,6 +74,71 @@ CI (`.github/workflows/ci.yml`) runs lint + typecheck + tests on every push and 
 6. Production deploys from `main`; every PR gets a preview URL. Preview deploys share the
    production Supabase project — signup stays invite-gated there too.
 
+## Public showtimes API
+
+`GET /api/showtimes` is public, unauthenticated and stateless — it serves only AMC data, never
+user rows, and imports no Supabase. It exists so an agent (see [the Claude
+Skill](../skills/amc-showtimes/README.md)) can answer "what's on tonight?" from live data instead
+of guessing.
+
+```bash
+curl "https://amc-assistant.vercel.app/api/showtimes?near=brooklyn&after=17:00&view=text"
+```
+
+Pick theatres with exactly one of `theatre=` (ids/slugs/names, max 5), `near=`, `city=` or `zip=`;
+shape the result with `date` / `days` / `after` / `before` / `format` / `movie` / `view` /
+`compact`. Full contract: [skills/amc-showtimes/references/api.md](../skills/amc-showtimes/references/api.md).
+
+Two design rules worth knowing before you change it:
+
+- **Ambiguity is never resolved silently.** A name matching several theatres returns an
+  `unresolvedInput` entry with candidates and fetches nothing. A syntactically valid query is
+  always 200 even when it resolves to zero theatres — the body says what happened, because models
+  read fields more reliably than status codes.
+- **Unknown metadata is `null`, and the four empty states are distinct.** `no-showtimes`,
+  `filtered-empty`, `closed` and `error` each carry counts that prove which one applies, so "AMC is
+  down" can never be reported as "nothing is playing".
+
+Measured sizes, from one suburban theatre up to three Manhattan multiplexes (the heavy case):
+
+| Call | 1 theatre | 3 big-city theatres |
+|---|---|---|
+| `view=text` | 1.7 KB | 5.5 KB |
+| `view=json&compact=1` | 6 KB | 23 KB |
+| `view=json` | 13 KB | 47 KB |
+
+`after=none` across three big theatres reaches ~86 KB, which is what `maxShowtimes` exists to
+bound. Prefer `view=text` for browsing and `view=json&movie=` when a booking link is needed.
+
+### Do not add `export const dynamic` to this route
+
+The sibling cron and webhook routes set `force-dynamic`, so it looks like the house pattern. Per
+the Next docs it is equivalent to setting every `fetch` to `{ cache: 'no-store', next: { revalidate:
+0 } }` — which would disable the Data Cache in `lib/amc.ts` and hit AMC on *every* request. That
+cache is the only thing protecting the vendor key's quota on a public endpoint.
+
+### The proxy skips this route
+
+`lib/auth-routes.ts` lists `/api/showtimes`, `/api/cron` and `/api/telegram` as sessionless, and
+`lib/supabase/proxy.ts` returns early for them — before `createServerClient`. Without that, every
+call to this public endpoint would still make a `supabase.auth.getUser()` round-trip whose result
+is thrown away. `/api/theatres` is deliberately excluded: it reads the session and needs the
+cookie refreshed.
+
+### Refreshing the theatre index
+
+Theatre resolution runs against `lib/theatre-index.json`, a committed snapshot of all 523 AMC
+locations, so lookups cost zero AMC calls and are deterministic. Rebuild it when theatres open or
+close:
+
+```powershell
+npm run theatres:build
+```
+
+The script fails loudly if AMC reports a timezone it can't map, and cross-checks every mapped IANA
+zone against AMC's own reported UTC offset — that guard is what caught Arizona being labelled
+"MOUNTAIN TIME" while not observing DST.
+
 ## Telegram alerts
 
 Per-user drop-alerts: Settings → **Connect Telegram** links your chat (bot **@TheAMCmoviebot**),

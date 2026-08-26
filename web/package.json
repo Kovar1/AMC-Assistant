@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "db:setup": "node --env-file=.env.local scripts/setup-db.mjs"
+    "db:setup": "node --env-file=.env.local scripts/setup-db.mjs",
+    "theatres:build": "node --env-file=.env.local scripts/build-theatre-index.mjs",
+    "skill:zip": "node scripts/pack-skill.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -12,6 +12,17 @@ export type Showtime = {
   isSoldOut?: boolean;
   purchaseUrl?: string;
   attributes?: Attr[];
+  // AMC returns far more than the board needs. These are used by the public /api/showtimes
+  // endpoint, where every value it reports has to be a grounded fact rather than an inference.
+  showDateTimeUtc?: string;
+  utcOffset?: string;
+  theatreId?: number;
+  movieUrl?: string;
+  runTime?: number;
+  mpaaRating?: string;
+  genre?: string;
+  isAlmostSoldOut?: boolean;
+  sellUntilDateTimeUtc?: string;
 };
 export type Movie = {
   id: number;
@@ -59,6 +70,14 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 const CLOUDINARY = "amc-theatres-res.cloudinary.com/";
 export const FORMAT_ORDER: Format[] = ["IMAX", "DOLBY", "XL", "LASER", "STANDARD"];
 export const FMT_LABEL: Record<Format, string> = { IMAX: "IMAX", DOLBY: "Dolby", XL: "XL", LASER: "Laser", STANDARD: "" };
+// Spelled-out names for the API's text view, where a bare "XL" would not be self-explanatory.
+export const FMT_FULL_LABEL: Record<Format, string> = {
+  IMAX: "IMAX at AMC",
+  DOLBY: "Dolby Cinema at AMC",
+  XL: "BigD / XL",
+  LASER: "Laser at AMC",
+  STANDARD: "Standard",
+};
 
 export function fmt(s: Showtime): Format {
   const codes = (s.attributes ?? []).map((a) => a.code ?? "").join(" ");
