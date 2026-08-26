@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { authRedirect, isSessionlessApiPath } from "@/lib/auth-routes";
+import { authRedirect, isSessionlessPath } from "@/lib/auth-routes";
 
 /**
  * Refreshes the Supabase session on every request and applies the optimistic route guard.
@@ -8,10 +8,11 @@ import { authRedirect, isSessionlessApiPath } from "@/lib/auth-routes";
  * pages/Server Actions; the proxy is a first-line redirect only.
  */
 export async function updateSession(request: NextRequest) {
-  // Skip the Supabase round-trip for routes that carry no session (public showtimes API, cron,
-  // Telegram webhook). authRedirect would return null for them anyway, so the only thing getUser()
-  // achieves there is latency on every call.
-  if (isSessionlessApiPath(request.nextUrl.pathname)) {
+  // Skip the Supabase round-trip for routes that carry no session (public showtimes API/MCP, cron,
+  // Telegram webhook, the OAuth shim). For /api/ paths authRedirect would return null anyway, so
+  // the only thing getUser() achieves there is latency; for /.well-known and /oauth, skipping this
+  // is what stops an anonymous OAuth client from being redirected to /login.
+  if (isSessionlessPath(request.nextUrl.pathname)) {
     return NextResponse.next({ request });
   }
 

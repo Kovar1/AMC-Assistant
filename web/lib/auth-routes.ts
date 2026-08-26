@@ -2,22 +2,28 @@ export type AuthState = { error?: string; message?: string } | null;
 
 const PUBLIC = ["/login", "/signup", "/reset", "/update-password", "/auth"];
 
-// API routes that authenticate themselves and never read a Supabase session, so the proxy can skip
-// its getUser() call entirely for them. That call is a network round-trip to Supabase on every
-// request — pure latency and load here, since /api/showtimes, /api/mcp are public and the other
-// two run on their own shared secret plus the service role.
+// Routes that authenticate themselves (or need no auth at all) and never read a Supabase session,
+// so the proxy can skip its getUser() call entirely for them. That call is a network round-trip to
+// Supabase on every request — pure latency and load here, since /api/showtimes and /api/mcp are
+// public, /api/cron and /api/telegram run on their own shared secret plus the service role, and
+// /.well-known + /oauth are the no-op OAuth shim (see lib/mcp-oauth.ts) that anonymous MCP clients
+// hit before they have any session to carry.
+//
+// This list also stands in for isPublicPath() for these paths: authRedirect() only special-cases
+// `/api/` unconditionally, so without this early bypass an anonymous request to /oauth/authorize
+// would otherwise get redirected to /login.
 //
 // /api/theatres is deliberately NOT in this list: it calls getUser() itself and relies on the
 // proxy to keep the session cookie fresh.
-const SESSIONLESS_API = ["/api/showtimes", "/api/mcp", "/api/cron", "/api/telegram"];
+const SESSIONLESS_PATHS = ["/api/showtimes", "/api/mcp", "/api/cron", "/api/telegram", "/.well-known", "/oauth"];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-/** True for API routes that need no Supabase session, so the proxy can pass them straight through. */
-export function isSessionlessApiPath(pathname: string): boolean {
-  return SESSIONLESS_API.some((p) => pathname === p || pathname.startsWith(p + "/"));
+/** True for routes that need no Supabase session, so the proxy can pass them straight through. */
+export function isSessionlessPath(pathname: string): boolean {
+  return SESSIONLESS_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
 /**

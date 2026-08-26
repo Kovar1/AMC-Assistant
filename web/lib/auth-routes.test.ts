@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authRedirect, isPublicPath, isSessionlessApiPath } from "./auth-routes";
+import { authRedirect, isPublicPath, isSessionlessPath } from "./auth-routes";
 
 describe("authRedirect", () => {
   it("sends logged-out users from protected pages to /login", () => {
@@ -40,31 +40,48 @@ describe("authRedirect", () => {
   });
 });
 
-describe("isSessionlessApiPath", () => {
+describe("isSessionlessPath", () => {
   it("covers the routes that authenticate themselves", () => {
-    expect(isSessionlessApiPath("/api/showtimes")).toBe(true);
-    expect(isSessionlessApiPath("/api/mcp")).toBe(true);
-    expect(isSessionlessApiPath("/api/cron/alerts")).toBe(true);
-    expect(isSessionlessApiPath("/api/telegram/webhook")).toBe(true);
+    expect(isSessionlessPath("/api/showtimes")).toBe(true);
+    expect(isSessionlessPath("/api/mcp")).toBe(true);
+    expect(isSessionlessPath("/api/cron/alerts")).toBe(true);
+    expect(isSessionlessPath("/api/telegram/webhook")).toBe(true);
+  });
+
+  it("covers the no-op OAuth shim, so anonymous MCP clients aren't redirected to /login", () => {
+    expect(isSessionlessPath("/.well-known/oauth-authorization-server")).toBe(true);
+    expect(isSessionlessPath("/.well-known/oauth-protected-resource")).toBe(true);
+    expect(isSessionlessPath("/.well-known/oauth-protected-resource/api/mcp")).toBe(true);
+    expect(isSessionlessPath("/oauth/register")).toBe(true);
+    expect(isSessionlessPath("/oauth/authorize")).toBe(true);
+    expect(isSessionlessPath("/oauth/token")).toBe(true);
   });
 
   it("excludes /api/theatres, which reads the session and needs the cookie refreshed", () => {
-    expect(isSessionlessApiPath("/api/theatres")).toBe(false);
+    expect(isSessionlessPath("/api/theatres")).toBe(false);
   });
 
   it("excludes page routes", () => {
-    expect(isSessionlessApiPath("/")).toBe(false);
-    expect(isSessionlessApiPath("/settings")).toBe(false);
+    expect(isSessionlessPath("/")).toBe(false);
+    expect(isSessionlessPath("/settings")).toBe(false);
   });
 
   it("matches on a path boundary, not a bare prefix", () => {
-    expect(isSessionlessApiPath("/api/showtimes-private")).toBe(false);
-    expect(isSessionlessApiPath("/api/showtimes/anything")).toBe(true);
+    expect(isSessionlessPath("/api/showtimes-private")).toBe(false);
+    expect(isSessionlessPath("/api/showtimes/anything")).toBe(true);
+    expect(isSessionlessPath("/oauthx")).toBe(false);
   });
 
   it("never contradicts authRedirect, which already passes all /api through", () => {
     for (const p of ["/api/showtimes", "/api/mcp", "/api/cron/alerts", "/api/telegram/webhook"]) {
       expect(authRedirect(p, false)).toBeNull();
     }
+  });
+
+  it("would otherwise be redirected by authRedirect — the bypass is load-bearing for /oauth and /.well-known", () => {
+    // authRedirect only special-cases /api/ unconditionally; without the isSessionlessPath bypass
+    // in the proxy, an anonymous request to these paths falls through to the logged-out redirect.
+    expect(authRedirect("/oauth/authorize", false)).toBe("/login");
+    expect(authRedirect("/.well-known/oauth-authorization-server", false)).toBe("/login");
   });
 });
