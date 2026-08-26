@@ -74,12 +74,40 @@ CI (`.github/workflows/ci.yml`) runs lint + typecheck + tests on every push and 
 6. Production deploys from `main`; every PR gets a preview URL. Preview deploys share the
    production Supabase project — signup stays invite-gated there too.
 
+## MCP connector
+
+The way to give claude.ai (or any MCP client) live AMC data. A Skill can't do this — see
+[why](../skills/amc-showtimes/README.md) — because claude.ai's `web_fetch` tool refuses to fetch
+any URL Claude constructs itself; an MCP tool call is a structured function call, not a URL, so
+that restriction doesn't apply.
+
+**Setup**: claude.ai → Settings → Connectors → Add custom connector →
+`https://amc-assistant.vercel.app/api/mcp`. No auth.
+
+`app/api/mcp/route.ts` exposes one tool, `get_showtimes`, built on [`mcp-handler`](https://github.com/vercel/mcp-handler)
+(stateless — no Redis/session storage, matching this app's public/no-DB design). It wraps the
+exact same `parseShowtimesQuery` → `getShowtimesPayload` → `renderShowtimesText` pipeline the HTTP
+endpoint uses, via a `URLSearchParams` built from the tool's typed arguments — the two surfaces
+share one tested implementation and can't drift apart. All the anti-hallucination guidance (report
+only what's in the result, never construct a `bookUrl`, ask rather than guess a location or an
+ambiguous theatre) lives in the tool's `description` and the server's `instructions`, since those
+are the only things an MCP client actually reads — `SKILL.md` is never loaded through this path.
+
+Verify locally against the raw JSON-RPC protocol (`Accept: application/json, text/event-stream` is
+required; the handler is stateless, so `tools/call` works without a prior `initialize`, though a
+real client sends one):
+
+```bash
+curl -X POST http://localhost:3000/api/mcp \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_showtimes","arguments":{"near":"nyc","after":"17:00"}}}'
+```
+
 ## Public showtimes API
 
 `GET /api/showtimes` is public, unauthenticated and stateless — it serves only AMC data, never
-user rows, and imports no Supabase. It exists so an agent (see [the Claude
-Skill](../skills/amc-showtimes/README.md)) can answer "what's on tonight?" from live data instead
-of guessing.
+user rows, and imports no Supabase. It's the HTTP surface behind the MCP tool above, and also
+callable directly by anything that can set query params on a URL (curl, Claude Code, scripts).
 
 ```bash
 curl "https://amc-assistant.vercel.app/api/showtimes?near=brooklyn&after=17:00&view=text"
@@ -87,7 +115,8 @@ curl "https://amc-assistant.vercel.app/api/showtimes?near=brooklyn&after=17:00&v
 
 Pick theatres with exactly one of `theatre=` (ids/slugs/names, max 5), `near=`, `city=` or `zip=`;
 shape the result with `date` / `days` / `after` / `before` / `format` / `movie` / `view` /
-`compact`. Full contract: [skills/amc-showtimes/references/api.md](../skills/amc-showtimes/references/api.md).
+`compact`. Full contract: [skills/amc-showtimes/references/api.md](../skills/amc-showtimes/references/api.md)
+(the parameter reference is still accurate; ignore that folder's Skill-upload instructions).
 
 Two design rules worth knowing before you change it:
 
@@ -135,7 +164,7 @@ curl -sD- -o /dev/null "https://amc-assistant.vercel.app/api/showtimes?theatre=2
 
 ### The proxy skips this route
 
-`lib/auth-routes.ts` lists `/api/showtimes`, `/api/cron` and `/api/telegram` as sessionless, and
+`lib/auth-routes.ts` lists `/api/showtimes`, `/api/mcp`, `/api/cron` and `/api/telegram` as sessionless, and
 `lib/supabase/proxy.ts` returns early for them — before `createServerClient`. Without that, every
 call to this public endpoint would still make a `supabase.auth.getUser()` round-trip whose result
 is thrown away. `/api/theatres` is deliberately excluded: it reads the session and needs the

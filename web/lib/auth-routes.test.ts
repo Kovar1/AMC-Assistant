@@ -43,6 +43,7 @@ describe("authRedirect", () => {
 describe("isSessionlessApiPath", () => {
   it("covers the routes that authenticate themselves", () => {
     expect(isSessionlessApiPath("/api/showtimes")).toBe(true);
+    expect(isSessionlessApiPath("/api/mcp")).toBe(true);
     expect(isSessionlessApiPath("/api/cron/alerts")).toBe(true);
     expect(isSessionlessApiPath("/api/telegram/webhook")).toBe(true);
   });
@@ -62,7 +63,7 @@ describe("isSessionlessApiPath", () => {
   });
 
   it("never contradicts authRedirect, which already passes all /api through", () => {
-    for (const p of ["/api/showtimes", "/api/cron/alerts", "/api/telegram/webhook"]) {
+    for (const p of ["/api/showtimes", "/api/mcp", "/api/cron/alerts", "/api/telegram/webhook"]) {
       expect(authRedirect(p, false)).toBeNull();
     }
   });

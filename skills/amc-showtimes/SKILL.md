@@ -12,6 +12,13 @@ description: >
 
 # AMC Showtimes
 
+> **Deprecated for claude.ai.** This Skill cannot actually fetch showtimes there — claude.ai's
+> `web_fetch` tool refuses to fetch a URL Claude constructs from `?near=...&after=...` parameters,
+> which is exactly what browsing instructions below tell it to do. Use the MCP connector at
+> `https://amc-assistant.vercel.app/api/mcp` instead (claude.ai → Settings → Connectors → Add
+> custom connector). See [README.md](README.md) for why. This file is kept only as documentation
+> of the query contract and anti-hallucination rules, which the MCP tool description now carries.
+
 Answer movie-showtime questions from live AMC data. **Every fact you report must come from the API
 response.** If it isn't in the payload, you don't know it.
 

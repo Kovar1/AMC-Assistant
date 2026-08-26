@@ -1,51 +1,44 @@
 # amc-showtimes — Claude Skill
 
-Lets Claude answer "what's playing tonight?" from live AMC data instead of from training data.
-Nothing about it is user-specific: it asks where you are the first time, remembers the answer, and
-works for anyone in range of an AMC.
+> **Status: does not work on claude.ai (consumer) for live data.** Use the [MCP
+> connector](../web/README.md#mcp-connector) instead — see below for why.
 
-## Install on claude.ai
+## Why this Skill can't fetch showtimes on claude.ai
 
-1. Build the zip (`SKILL.md` has to sit at the archive root, which this handles):
+A Skill's bundled files run in claude.ai's code execution sandbox, which has **no internet
+access at all** ([Anthropic docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool#networking-and-security)).
+The only way Claude can reach a URL from there is the separate `web_fetch` tool — and that tool
+explicitly **refuses to fetch a URL Claude constructs itself**:
 
-   ```bash
-   npm --prefix web run skill:zip
-   ```
+> The web fetch tool can only fetch URLs that have previously appeared in the conversation
+> context... The tool cannot fetch arbitrary URLs that Claude generates.
+> — [Web fetch tool docs, URL validation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool#url-validation)
 
-   Output: `skills/amc-showtimes.zip`.
+This Skill's entire design was "read `SKILL.md`, build a query string like `?near=brooklyn&after=17:00`,
+fetch it." That's exactly the case the restriction exists to block — it's a deliberate
+anti-data-exfiltration measure, not a bug or a permissions toggle. No amount of `SKILL.md` wording
+fixes it.
 
-2. claude.ai → Settings → Capabilities → Skills → **Upload skill** → pick the zip.
-3. Ask *"feeling a movie tonight, what's on near me?"*
+In practice: the Skill triggers correctly on natural-language prompts (the `description` works),
+and it correctly refuses to invent showtimes rather than hallucinate — but it can't reach live
+data, so it can only tell you to check amctheatres.com yourself.
 
-## What it depends on
+**This Skill may still work in an environment where the model's URL-fetching tool doesn't carry
+that restriction** (Claude Code's `WebFetch`, for instance, is a different, client-side tool) —
+untested, not the goal here, and not worth pursuing further since the MCP connector is a strictly
+better answer for claude.ai.
 
-The public endpoint at `https://amc-assistant.vercel.app/api/showtimes`, served by this repo's
-`web/` app. No key, no auth — the skill just fetches a URL.
+## Use the MCP connector instead
 
-If you fork this, change the base URL in `SKILL.md` and `references/api.md` to your own deployment.
+The same backend logic — theatre resolution, filtering, the anti-hallucination payload shape — is
+exposed as an MCP tool at `https://amc-assistant.vercel.app/api/mcp`. MCP tool calls are structured
+function calls, not URLs, so the restriction above doesn't apply.
 
-## Files
+**Setup**: claude.ai → Settings → Connectors → Add custom connector → paste the URL above. No
+auth needed. Full details: [web/README.md § MCP connector](../web/README.md#mcp-connector).
 
-| File | Purpose |
-|---|---|
-| `SKILL.md` | Trigger description, the location-then-remember flow, and the rules that keep answers grounded |
-| `references/api.md` | Full query contract and every response field |
-| `references/finding-theatres.md` | How locations and names resolve; what to do when ambiguous |
+## What's left in this folder
 
-## The design in one line
-
-The endpoint is stateless and factual; the skill is where personalization lives. That split is why
-the same skill works for everybody, and why an answer can always be traced back to a payload field.
-
-## Checking it behaves
-
-Worth testing after any edit to `SKILL.md`:
-
-1. "What's on tonight?" with no saved location → must **ask** where you are, not guess a city.
-2. Answer with a city → should call `after=17:00` (not `after=now`) and lead with the data
-   timestamp.
-3. New conversation, same question → should reuse the remembered location and say which it used.
-4. Name an ambiguous theatre ("plaza") → must list candidates and ask, not pick.
-5. "Get me tickets for the 9:45" → must paste a link that appears verbatim in the payload.
-6. Ask for a film's plot or whether it's good → must not present training data as AMC data.
-7. Somewhere with no nearby AMC → must say so and offer a wider radius, not invent a theatre.
+`SKILL.md` and `references/` are kept as documentation of the tool contract (query parameters,
+response fields, resolution rules) — the same information now lives in the MCP tool's description
+and this repo's docs, so nothing here should be uploaded to claude.ai going forward.
