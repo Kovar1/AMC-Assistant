@@ -1,32 +1,31 @@
 # AMC Assistant
 
-Multi-user AMC showtime app: browse tonight's board at your theatres, heart movies into a
-watchlist, and book showtimes in your preferred formats and times.
+A full-stack movie showtime app with a live AI assistant integration — built to answer "what's
+playing tonight?" with real, current data instead of guesses.
 
-**The app lives in [`web/`](web/README.md)** — Next.js on Vercel, Supabase for auth and
-per-user data (Postgres + row-level security), invite-only signup enforced in the database.
-Setup, testing, and deployment docs are in [web/README.md](web/README.md).
+**Live app:** https://amc-assistant.vercel.app
 
-## MCP server — live showtimes for Claude
+## What this project demonstrates
 
-[`web/app/api/mcp`](web/app/api/mcp/route.ts) exposes a `get_showtimes` tool over MCP so Claude
-can answer "what's playing tonight?" from real AMC data instead of guessing. It resolves theatres
-by name, city, zip, or distance across 500+ AMC locations ([`web/lib/theatre-index.ts`](web/lib/theatre-index.ts)),
-and the response shape ([`web/lib/showtimes-api.ts`](web/lib/showtimes-api.ts)) is designed so the
-model reports facts instead of inventing them: unknown fields come back `null`, ambiguous theatre
-names return candidates instead of a guess, and every response states its own timestamp.
+- **Full-stack web development** — TypeScript, React, Next.js, Node.js
+- **AI / LLM integration** — a Model Context Protocol (MCP) server that lets AI assistants like
+  Claude pull real-time, factual data instead of hallucinating, with OAuth 2.0 authentication
+- **API design** — public REST endpoints, rate limiting, caching, geolocation search across 500+
+  locations nationwide
+- **Database & security** — PostgreSQL (Supabase), Row-Level Security, authentication,
+  invite-gated signup
+- **Cloud deployment & CI/CD** — deployed on Vercel, automated linting/type-checking/testing on
+  every push via GitHub Actions
+- **Automated testing** — 240+ unit and integration tests
+- **Third-party API integration** — live theatre data, Telegram bot notifications
 
-Also includes a minimal OAuth 2.0 shim ([`web/lib/mcp-oauth.ts`](web/lib/mcp-oauth.ts)) built to
-work around a claude.ai connector-setup bug — the underlying data needs no auth, but claude.ai's
-UI insists on an OAuth handshake before it'll add any connector.
+## Tech stack
 
-Live: `https://amc-assistant.vercel.app/api/mcp` (add as a custom connector — claude.ai →
-Settings → Connectors). Same logic is also a plain HTTP API at
-[`/api/showtimes`](web/app/api/showtimes/route.ts), callable with curl.
+TypeScript, React, Next.js, Node.js, PostgreSQL, Supabase, Model Context Protocol (MCP),
+OAuth 2.0, Vercel, GitHub Actions, Vitest
 
-## Legacy
+## How it started
 
-The Python files at the repo root (`app.py`, `assistant.py`, `core.py`, `amc.py`, …) are the
-original single-user Flask version, replaced by `web/`. They're kept temporarily because
-`web/scripts/import-state.mjs` reads `state.json` for the one-time data import; once that
-import is done they can be deleted (history keeps them).
+The first version was a single-user Python/Flask prototype. It was rebuilt as a production,
+multi-user web application — the original Python files are kept in this repo for reference.
+Setup and deployment details are in [web/README.md](web/README.md).
