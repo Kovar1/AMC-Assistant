@@ -45,7 +45,13 @@ const inputSchema = z.object({
   before: z.string().optional().describe('"HH:MM" (24h) or "none". Upper bound on start time.'),
   format: z.string().optional().describe(`Comma subset of ${FORMAT_ORDER.join(",")}. Omit for all formats.`),
   movie: z.string().optional().describe("Filter to showtimes whose title contains this substring, case-insensitive."),
-  compact: z.boolean().optional().describe("When true, omit derivable/false-valued fields to shrink the response. Default false."),
+  compact: z.boolean().optional().describe("When true, omit derivable/false-valued fields to shrink the response. Default false. Only affects view=json."),
+  view: z
+    .enum(["text", "json"])
+    .optional()
+    .describe(
+      '"text" (default): compact, human-readable, but NEVER includes booking links. "json": full structured data INCLUDING the real bookUrl for each bookable showtime. Use view="json" (ideally narrowed with theatre= and movie=) whenever the user wants to book, needs a ticket link, or asks "where do I buy tickets" — text view cannot answer that.',
+    ),
 });
 
 function toSearchParams(args: z.infer<typeof inputSchema>): URLSearchParams {
@@ -66,7 +72,8 @@ RULES — this tool exists specifically so you never have to guess:
 - "tonight" is NOT after="now" — see the after parameter's description. Getting this wrong surfaces matinees as "tonight's options."
 - If the result lists unresolvedInput with status "ambiguous", show the candidates and ask which theatre they mean. Never pick one yourself.
 - The four theatre statuses (no-showtimes / filtered-empty / closed / error) mean different things — read statusDetail and say which applies. "error" means the AMC call failed; never report that as "nothing is playing."
-- If the tool call itself fails, say so. Do not fall back to training data for showtimes.`;
+- If the tool call itself fails, say so. Do not fall back to training data for showtimes.
+- The default response never includes booking links. If the user wants to book or asks for a ticket link, call this tool again with view="json" (narrow it with theatre= and movie= so the result stays small) and read bookUrl from there. Never construct a link yourself in the meantime.`;
 
 const SERVER_INSTRUCTIONS = `This server has one tool, get_showtimes, backed by the live AMC Theatres API (api.amctheatres.com) via a snapshot of all AMC theatre locations for name/city/zip/distance resolution. Every value it returns is a fact from that API at the moment of the call — nothing is inferred, and the tool's own description explains exactly what to do with ambiguous or missing data. Prefer this tool's data over anything you already believe about current showtimes, which cannot be current.`;
 
@@ -105,7 +112,11 @@ const handler = createMcpHandler((server) => {
         return { content: [{ type: "text" as const, text: `${result.error}\n\n${result.hint}` }], isError: true };
       }
 
-      return { content: [{ type: "text" as const, text: renderShowtimesText(result.payload) }] };
+      // Text is the default: compact and quotable, but deliberately strips bookUrl to stay small.
+      // json is the only mode that carries real booking links — see the view param's description.
+      const text =
+        parsed.query.view === "json" ? JSON.stringify(result.payload) : renderShowtimesText(result.payload);
+      return { content: [{ type: "text" as const, text }] };
     },
   );
 }, {
