@@ -161,9 +161,16 @@ export function buildCatalog(feeds: Movie[][]): Map<number, MovieMeta> {
   return cat;
 }
 
-function isRerelease(release: string | undefined, now: string): boolean {
-  if (!release) return false;
-  return new Date(now).getTime() - new Date(release).getTime() > 365 * 86400000;
+/** Days between a release date and `now`. Null when release is unknown. Negative for a future
+ *  (advance/preview) release date. */
+function daysSinceRelease(release: string | undefined, now: string): number | null {
+  if (!release) return null;
+  return (new Date(now).getTime() - new Date(release).getTime()) / 86400000;
+}
+
+export function isRerelease(release: string | undefined, now: string): boolean {
+  const days = daysSinceRelease(release, now);
+  return days !== null && days > 365;
 }
 
 /** At-your-theatre first (1000 tier), then popularity score, +0.15 fan-fave, -0.15 international. */
@@ -218,6 +225,52 @@ export function buildBoard(
     movies.sort((a, b) => rank(b.id) - rank(a.id));
     return { name: t.name, movies };
   });
+}
+
+export type DigestEntry = { id: number; title: string; theatres: string[] };
+export type Digest = { rereleases: DigestEntry[]; newReleases: DigestEntry[] };
+
+/**
+ * Daily discovery digest for a theatre set: what's new today, split into limited/special
+ * engagements (re-releases, >365 days since original release — same rule as the board's
+ * rerelease badge) and genuinely new releases (within `newWindowDays` of release). Anything
+ * playing that's neither — an ordinary movie mid-run — is deliberately excluded; this is a
+ * "what's new" digest, not the full board.
+ */
+export function buildDigest(
+  theatres: Theatre[],
+  showtimesByTheatre: Map<number, Showtime[]>,
+  catalog: Map<number, MovieMeta>,
+  today: string,
+  now: string,
+  newWindowDays = 14,
+): Digest {
+  const theatresByMovie = new Map<number, Set<string>>();
+  for (const t of theatres) {
+    for (const s of showtimesByTheatre.get(t.id) ?? []) {
+      const local = s.showDateTimeLocal ?? "";
+      if (s.isCanceled || !local.startsWith(today)) continue;
+      const set = theatresByMovie.get(s.movieId) ?? new Set<string>();
+      set.add(t.name);
+      theatresByMovie.set(s.movieId, set);
+    }
+  }
+
+  const rereleases: DigestEntry[] = [];
+  const newReleases: DigestEntry[] = [];
+  for (const [movieId, theatreSet] of theatresByMovie) {
+    const meta = catalog.get(movieId);
+    const entry: DigestEntry = { id: movieId, title: meta?.name ?? `Movie ${movieId}`, theatres: [...theatreSet].sort() };
+    if (isRerelease(meta?.release, now)) {
+      rereleases.push(entry);
+    } else {
+      const days = daysSinceRelease(meta?.release, now);
+      if (days !== null && days <= newWindowDays) newReleases.push(entry);
+    }
+  }
+  rereleases.sort((a, b) => a.title.localeCompare(b.title));
+  newReleases.sort((a, b) => (catalog.get(b.id)?.release ?? "").localeCompare(catalog.get(a.id)?.release ?? ""));
+  return { rereleases, newReleases };
 }
 
 export type WatchCard = {
