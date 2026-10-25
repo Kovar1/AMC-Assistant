@@ -1,6 +1,6 @@
 """Shared test fixtures.
 
-Lives at the repo root so `core`, `amc`, `app` are importable, and so every test runs with
+Lives at the top of prototype/ so `core`, `amc`, `app` are importable, and so every test runs with
 the real state.json swapped for a temp file and all AMC network calls stubbed out.
 """
 

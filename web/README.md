@@ -25,7 +25,7 @@ signup enforced in the database.
 5. `npm run dev` → <http://localhost:3000> → sign up, then onboarding asks for your
    theatres and formats.
 
-One-time import of the old single-user `state.json` (after you've signed up):
+One-time import of the old single-user `prototype/state.json` (after you've signed up):
 
 ```powershell
 node --env-file=.env.local scripts/import-state.mjs you@example.com
@@ -77,7 +77,7 @@ CI (`.github/workflows/ci.yml`) runs lint + typecheck + tests on every push and 
 ## MCP connector
 
 The way to give claude.ai (or any MCP client) live AMC data. A Skill can't do this — see
-[why](../skills/amc-showtimes/README.md) — because claude.ai's `web_fetch` tool refuses to fetch
+[why](../prototype/skills/amc-showtimes/README.md) — because claude.ai's `web_fetch` tool refuses to fetch
 any URL Claude constructs itself; an MCP tool call is a structured function call, not a URL, so
 that restriction doesn't apply.
 
@@ -115,7 +115,7 @@ curl "https://amc-assistant.vercel.app/api/showtimes?near=brooklyn&after=17:00&v
 
 Pick theatres with exactly one of `theatre=` (ids/slugs/names, max 5), `near=`, `city=` or `zip=`;
 shape the result with `date` / `days` / `after` / `before` / `format` / `movie` / `view` /
-`compact`. Full contract: [skills/amc-showtimes/references/api.md](../skills/amc-showtimes/references/api.md)
+`compact`. Full contract: [prototype/skills/amc-showtimes/references/api.md](../prototype/skills/amc-showtimes/references/api.md)
 (the parameter reference is still accurate; ignore that folder's Skill-upload instructions).
 
 Two design rules worth knowing before you change it:

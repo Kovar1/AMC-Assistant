@@ -1,4 +1,4 @@
-// One-time import of the old single-user state.json into a signed-up user's rows.
+// One-time import of the old single-user prototype/state.json into a signed-up user's rows.
 // Usage: node --env-file=.env.local scripts/import-state.mjs you@email.com
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -11,7 +11,7 @@ if (!email) {
   process.exit(1);
 }
 const here = dirname(fileURLToPath(import.meta.url));
-const state = JSON.parse(readFileSync(join(here, "..", "..", "state.json"), "utf8"));
+const state = JSON.parse(readFileSync(join(here, "..", "..", "prototype", "state.json"), "utf8"));
 
 const theatres = (state.theatres ?? []).map((id) => ({
   id,

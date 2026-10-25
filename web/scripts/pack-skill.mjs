@@ -1,5 +1,5 @@
 // Package the Claude Skill for upload to claude.ai.
-//   npm run skill:zip     ->  skills/amc-showtimes.zip
+//   npm run skill:zip     ->  prototype/skills/amc-showtimes.zip
 //
 // SKILL.md must sit at the archive root, not inside a folder, or claude.ai won't recognise it.
 // Uses the OS zip tool (PowerShell's Compress-Archive on Windows, `zip` elsewhere) so there's no
@@ -11,8 +11,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const src = join(root, "skills", "amc-showtimes");
-const out = join(root, "skills", "amc-showtimes.zip");
+const src = join(root, "prototype", "skills", "amc-showtimes");
+const out = join(root, "prototype", "skills", "amc-showtimes.zip");
 
 if (!existsSync(join(src, "SKILL.md"))) {
   console.error(`No SKILL.md in ${src}`);
@@ -32,5 +32,5 @@ if (process.platform === "win32") {
 }
 
 const files = readdirSync(src, { recursive: true }).filter((f) => String(f).includes("."));
-console.log(`\nPacked ${files.length} file(s) -> skills/amc-showtimes.zip`);
+console.log(`\nPacked ${files.length} file(s) -> prototype/skills/amc-showtimes.zip`);
 console.log("Upload: claude.ai -> Settings -> Capabilities -> Skills -> Upload skill");

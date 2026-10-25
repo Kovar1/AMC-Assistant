@@ -1,7 +1,7 @@
 # amc-showtimes — Claude Skill
 
 > **Status: does not work on claude.ai (consumer) for live data.** Use the [MCP
-> connector](../web/README.md#mcp-connector) instead — see below for why.
+> connector](../../../web/README.md#mcp-connector) instead — see below for why.
 
 ## Why this Skill can't fetch showtimes on claude.ai
 
@@ -35,7 +35,7 @@ exposed as an MCP tool at `https://amc-assistant.vercel.app/api/mcp`. MCP tool c
 function calls, not URLs, so the restriction above doesn't apply.
 
 **Setup**: claude.ai → Settings → Connectors → Add custom connector → paste the URL above. No
-auth needed. Full details: [web/README.md § MCP connector](../web/README.md#mcp-connector).
+auth needed. Full details: [web/README.md § MCP connector](../../../web/README.md#mcp-connector).
 
 ## What's left in this folder
 
