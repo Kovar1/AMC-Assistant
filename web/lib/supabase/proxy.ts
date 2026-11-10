@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { authRedirect, isSessionlessPath } from "@/lib/auth-routes";
+import { authRedirect, isSessionlessPath, strayAuthCode } from "@/lib/auth-routes";
 
 /**
  * Refreshes the Supabase session on every request and applies the optimistic route guard.
@@ -15,6 +15,11 @@ export async function updateSession(request: NextRequest) {
   if (isSessionlessPath(request.nextUrl.pathname)) {
     return NextResponse.next({ request });
   }
+
+  // A reset link's one-time code that landed on the wrong page goes to the confirm route first,
+  // before the login guard can redirect it away.
+  const forward = strayAuthCode(request.nextUrl.pathname, request.nextUrl.searchParams);
+  if (forward) return NextResponse.redirect(new URL(forward, request.url));
 
   let supabaseResponse = NextResponse.next({ request });
 
