@@ -184,16 +184,27 @@ The script fails loudly if AMC reports a timezone it can't map, and cross-checks
 zone against AMC's own reported UTC offset — that guard is what caught Arizona being labelled
 "MOUNTAIN TIME" while not observing DST.
 
-## Telegram alerts
+## Telegram daily digest
 
-Per-user drop-alerts: Settings → **Connect Telegram** links your chat (bot **@TheAMCmoviebot**),
-then [alerts.yml](../.github/workflows/alerts.yml) pings `/api/cron/alerts` every 15 min to send
-each user one alert per new watchlist showtime that matches their prefs.
+Settings → **Connect Telegram** links your chat (bot **@TheAMCmoviebot**). Vercel Cron
+(`vercel.json`) then calls `/api/cron/digest` once a day at 18:00 UTC, and the digest tells you
+which movies are new at your saved theatres: playing today, but not seen playing there in the last
+7 days. `lineup_seen` remembers each theatre's lineup day by day, so a movie mid-run is never
+repeated and one returning after a short gap (an event that runs Sunday and again Wednesday) isn't
+re-announced. On a day with nothing new, no message is sent at all. The first run for a theatre
+only records its lineup — "new" needs a yesterday to compare against — so a freshly added theatre
+starts reporting the day after.
 
 To enable in production:
 
 1. Vercel env (Production): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `CRON_SECRET`,
    `SUPABASE_SERVICE_ROLE_KEY` — then redeploy.
-2. GitHub → repo Secrets: `CRON_SECRET` (same value) and `SITE_URL` (your Vercel URL).
-3. Register the webhook once:
+2. Register the webhook once:
    `node --env-file=.env.local scripts/set-telegram-webhook.mjs https://yourapp.vercel.app`
+
+Trigger a run by hand (safe to repeat — a same-day re-run finds nothing new and sends nothing; the
+response's `recorded` count shows the lineups were saved either way):
+
+```bash
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://yourapp.vercel.app/api/cron/digest
+```

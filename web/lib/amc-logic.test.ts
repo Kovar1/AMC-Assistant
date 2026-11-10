@@ -11,6 +11,10 @@ import {
   posterUrl,
   relevanceScore,
   showRow,
+  todaysLineup,
+  type Digest,
+  type Lineup,
+  type LineupSeen,
   type Movie,
   type Prefs,
   type Showtime,
@@ -181,91 +185,96 @@ describe("isRerelease", () => {
   });
 });
 
+describe("todaysLineup", () => {
+  const theatres: Theatre[] = [
+    { id: 2253, name: "GSP" },
+    { id: 557, name: "Riverside 9" },
+  ];
+  const today = "2030-06-15";
+
+  it("collects each theatre's movies for today, skipping canceled and other-day showtimes", () => {
+    const cat = buildCatalog([[movie({ id: 1, name: "Catalog Name" })]]);
+    const data = new Map<number, Showtime[]>([
+      [2253, [
+        show({ movieId: 1, movieName: "Feed Name", showDateTimeLocal: `${today}T19:00:00` }),
+        show({ movieId: 1, movieName: "Feed Name", showDateTimeLocal: `${today}T21:00:00` }), // same movie again
+        show({ movieId: 2, movieName: "Only In Feed", showDateTimeLocal: `${today}T20:00:00` }),
+        show({ movieId: 3, showDateTimeLocal: `${today}T20:00:00`, isCanceled: true }),
+        show({ movieId: 4, showDateTimeLocal: "2030-06-16T19:00:00" }), // tomorrow
+      ]],
+    ]);
+    const lineup = todaysLineup(theatres, data, cat, today);
+    expect([...lineup.get(2253)!]).toEqual([[1, "Catalog Name"], [2, "Only In Feed"]]);
+    expect(lineup.get(557)).toEqual(new Map()); // present but empty: nothing scheduled there
+  });
+});
+
 describe("buildDigest", () => {
   const theatres: Theatre[] = [
     { id: 2253, name: "GSP" },
     { id: 557, name: "Riverside 9" },
   ];
   const today = "2030-06-15";
-  // Z-suffixed and date-only strings both parse as UTC, so day-boundary math below is
-  // deterministic regardless of the test runner's local timezone. buildCatalog stores `release`
-  // as a date-only string (see amc-logic.ts:153), so releaseDateUtc's time-of-day never survives
-  // into the digest anyway.
+  const yesterday = "2030-06-14";
+  // Z-suffixed and date-only strings both parse as UTC, so the rerelease day math is deterministic
+  // regardless of the test runner's local timezone.
   const now = `${today}T00:00:00Z`;
+  const cat = buildCatalog([[
+    movie({ id: 1, name: "Old Classic", releaseDateUtc: "2020-01-01T00:00:00" }), // rerelease
+    movie({ id: 2, name: "Fresh Drop", releaseDateUtc: "2030-06-10T00:00:00" }),
+    movie({ id: 3, name: "Midrun Movie", releaseDateUtc: "2030-05-01T00:00:00" }),
+    movie({ id: 4, name: "Alpha Classic", releaseDateUtc: "2019-01-01T00:00:00" }), // rerelease
+    movie({ id: 5, name: "Newer Drop", releaseDateUtc: "2030-06-12T00:00:00" }),
+  ]]);
+  const lineupOf = (byTheatre: Record<number, number[]>): Lineup =>
+    new Map(Object.entries(byTheatre).map(([tid, ids]) => [Number(tid), new Map(ids.map((id) => [id, cat.get(id)!.name]))]));
+  const seenOf = (byTheatre: Record<number, Record<number, string>>): LineupSeen =>
+    new Map(Object.entries(byTheatre).map(([tid, m]) => [Number(tid), new Map(Object.entries(m).map(([id, d]) => [Number(id), d]))]));
+  const titles = (d: Digest) => ({ rereleases: d.rereleases.map((e) => e.title), newReleases: d.newReleases.map((e) => e.title) });
 
-  it("splits playing movies into rereleases and new releases, excluding ordinary mid-run movies", () => {
-    const cat = buildCatalog([[
-      movie({ id: 1, name: "Old Classic", releaseDateUtc: "2020-01-01T00:00:00" }), // rerelease
-      movie({ id: 2, name: "Fresh Drop", releaseDateUtc: "2030-06-10T00:00:00" }), // 5 days old -> new
-      movie({ id: 3, name: "Midrun Movie", releaseDateUtc: "2030-05-01T00:00:00" }), // 45 days old -> neither
-    ]]);
-    const data = new Map<number, Showtime[]>([
-      [2253, [
-        show({ movieId: 1, showDateTimeLocal: `${today}T19:00:00` }),
-        show({ movieId: 2, showDateTimeLocal: `${today}T20:00:00` }),
-        show({ movieId: 3, showDateTimeLocal: `${today}T21:00:00` }),
-      ]],
-    ]);
-    const digest = buildDigest(theatres, data, cat, today, now, 14);
-    expect(digest.rereleases.map((e) => e.title)).toEqual(["Old Classic"]);
-    expect(digest.newReleases.map((e) => e.title)).toEqual(["Fresh Drop"]);
+  it("reports only movies that were not playing at the theatre before", () => {
+    const digest = buildDigest(theatres, lineupOf({ 2253: [1, 2, 3] }), seenOf({ 2253: { 1: yesterday, 3: yesterday } }), cat, today, now, 7);
+    expect(titles(digest)).toEqual({ rereleases: [], newReleases: ["Fresh Drop"] });
   });
 
-  it("merges showtimes for the same movie across theatres into one entry", () => {
-    const cat = buildCatalog([[movie({ id: 1, name: "Fresh Drop", releaseDateUtc: "2030-06-10T00:00:00" })]]);
-    const data = new Map<number, Showtime[]>([
-      [2253, [show({ movieId: 1, showDateTimeLocal: `${today}T19:00:00` })]],
-      [557, [show({ movieId: 1, showDateTimeLocal: `${today}T20:00:00` })]],
-    ]);
-    const digest = buildDigest(theatres, data, cat, today, now, 14);
-    expect(digest.newReleases).toHaveLength(1);
-    expect(digest.newReleases[0].theatres).toEqual(["GSP", "Riverside 9"]);
+  it("decides newness by the theatre's memory, not the release date: a mid-run movie arriving is new there", () => {
+    const digest = buildDigest(theatres, lineupOf({ 2253: [3] }), seenOf({ 2253: { 1: yesterday } }), cat, today, now, 7);
+    expect(titles(digest)).toEqual({ rereleases: [], newReleases: ["Midrun Movie"] });
   });
 
-  it("ignores showtimes on other dates and canceled showtimes", () => {
-    const cat = buildCatalog([[movie({ id: 1, name: "Fresh Drop", releaseDateUtc: "2030-06-10T00:00:00" })]]);
-    const data = new Map<number, Showtime[]>([
-      [2253, [
-        show({ movieId: 1, showDateTimeLocal: "2030-06-16T19:00:00" }), // tomorrow, not today
-        show({ movieId: 1, showDateTimeLocal: `${today}T19:00:00`, isCanceled: true }),
-      ]],
-    ]);
-    const digest = buildDigest(theatres, data, cat, today, now, 14);
-    expect(digest.rereleases).toEqual([]);
-    expect(digest.newReleases).toEqual([]);
+  it("splits what's new into rereleases and new arrivals", () => {
+    const digest = buildDigest(theatres, lineupOf({ 2253: [1, 2] }), seenOf({ 2253: {} }), cat, today, now, 7);
+    expect(titles(digest)).toEqual({ rereleases: ["Old Classic"], newReleases: ["Fresh Drop"] });
   });
 
-  it("respects the newWindowDays boundary", () => {
-    const cat = buildCatalog([[movie({ id: 1, name: "Right At The Edge", releaseDateUtc: "2030-06-01T12:00:00" })]]); // exactly 14 days old
-    const data = new Map<number, Showtime[]>([[2253, [show({ movieId: 1, showDateTimeLocal: `${today}T19:00:00` })]]]);
-    expect(buildDigest(theatres, data, cat, today, now, 14).newReleases).toHaveLength(1);
-    expect(buildDigest(theatres, data, cat, today, now, 13).newReleases).toHaveLength(0);
+  it("treats a theatre with no memory at all as a baseline and reports nothing for it", () => {
+    expect(buildDigest(theatres, lineupOf({ 2253: [1, 2] }), new Map(), cat, today, now, 7)).toEqual({ rereleases: [], newReleases: [] });
+    // Mixed: only the remembered theatre's additions show up, and the entry names only that theatre.
+    const digest = buildDigest(theatres, lineupOf({ 2253: [2], 557: [2] }), seenOf({ 557: {} }), cat, today, now, 7);
+    expect(digest.newReleases).toEqual([{ id: 2, title: "Fresh Drop", theatres: ["Riverside 9"] }]);
   });
 
-  it("includes an advance/preview screening with a future release date as new", () => {
-    const cat = buildCatalog([[movie({ id: 1, name: "Sneak Peek", releaseDateUtc: "2030-07-01T00:00:00" })]]);
-    const data = new Map<number, Showtime[]>([[2253, [show({ movieId: 1, showDateTimeLocal: `${today}T19:00:00` })]]]);
-    const digest = buildDigest(theatres, data, cat, today, now, 14);
-    expect(digest.newReleases.map((e) => e.title)).toEqual(["Sneak Peek"]);
+  it("is not new while seen within the lookback window, and new again once it has been gone longer", () => {
+    const run = (lastSeen: string) => buildDigest(theatres, lineupOf({ 2253: [2] }), seenOf({ 2253: { 2: lastSeen } }), cat, today, now, 7).newReleases.length;
+    expect(run(today)).toBe(0); // a same-day re-run
+    expect(run(yesterday)).toBe(0);
+    expect(run("2030-06-08")).toBe(0); // exactly 7 days ago: still inside the window
+    expect(run("2030-06-07")).toBe(1); // 8 days ago: gone long enough to count as new again
   });
 
-  it("sorts new releases newest-first and rereleases alphabetically", () => {
-    const cat = buildCatalog([[
-      movie({ id: 1, name: "Older New", releaseDateUtc: "2030-06-05T00:00:00" }),
-      movie({ id: 2, name: "Newer New", releaseDateUtc: "2030-06-12T00:00:00" }),
-      movie({ id: 3, name: "Zeta Classic", releaseDateUtc: "2020-01-01T00:00:00" }),
-      movie({ id: 4, name: "Alpha Classic", releaseDateUtc: "2020-01-01T00:00:00" }),
-    ]]);
-    const data = new Map<number, Showtime[]>([
-      [2253, [1, 2, 3, 4].map((id) => show({ movieId: id, showDateTimeLocal: `${today}T19:00:00` }))],
-    ]);
-    const digest = buildDigest(theatres, data, cat, today, now, 14);
-    expect(digest.newReleases.map((e) => e.title)).toEqual(["Newer New", "Older New"]);
-    expect(digest.rereleases.map((e) => e.title)).toEqual(["Alpha Classic", "Zeta Classic"]);
+  it("merges a movie new at several theatres into one entry, naming only the theatres where it is new", () => {
+    const digest = buildDigest(theatres, lineupOf({ 2253: [2], 557: [2] }), seenOf({ 2253: {}, 557: {} }), cat, today, now, 7);
+    expect(digest.newReleases).toEqual([{ id: 2, title: "Fresh Drop", theatres: ["GSP", "Riverside 9"] }]);
+    const partial = buildDigest(theatres, lineupOf({ 2253: [2], 557: [2] }), seenOf({ 2253: { 2: yesterday }, 557: {} }), cat, today, now, 7);
+    expect(partial.newReleases).toEqual([{ id: 2, title: "Fresh Drop", theatres: ["Riverside 9"] }]);
+  });
+
+  it("sorts new arrivals newest release first and rereleases alphabetically", () => {
+    const digest = buildDigest(theatres, lineupOf({ 2253: [1, 2, 4, 5] }), seenOf({ 2253: {} }), cat, today, now, 7);
+    expect(titles(digest)).toEqual({ rereleases: ["Alpha Classic", "Old Classic"], newReleases: ["Newer Drop", "Fresh Drop"] });
   });
 
   it("returns empty groups when nothing is playing", () => {
-    const digest = buildDigest(theatres, new Map(), new Map(), today, now, 14);
-    expect(digest).toEqual({ rereleases: [], newReleases: [] });
+    expect(buildDigest(theatres, lineupOf({ 2253: [] }), seenOf({ 2253: { 1: yesterday } }), cat, today, now, 7)).toEqual({ rereleases: [], newReleases: [] });
   });
 });

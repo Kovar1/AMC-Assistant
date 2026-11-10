@@ -229,47 +229,82 @@ export function buildBoard(
 
 export type DigestEntry = { id: number; title: string; theatres: string[] };
 export type Digest = { rereleases: DigestEntry[]; newReleases: DigestEntry[] };
+/** One day's lineups: theatreId -> movieId -> title. */
+export type Lineup = Map<number, Map<number, string>>;
+/** Digest memory: theatreId -> movieId -> the last date (YYYY-MM-DD) that movie was seen playing
+ *  there. A theatre absent from the map has never been recorded at all. */
+export type LineupSeen = Map<number, Map<number, string>>;
 
-/**
- * Daily discovery digest for a theatre set: what's new today, split into limited/special
- * engagements (re-releases, >365 days since original release — same rule as the board's
- * rerelease badge) and genuinely new releases (within `newWindowDays` of release). Anything
- * playing that's neither — an ordinary movie mid-run — is deliberately excluded; this is a
- * "what's new" digest, not the full board.
- */
-export function buildDigest(
+function shiftDate(iso: string, days: number): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** The movies actually playing at each theatre on `today` (canceled showtimes ignored). Every
+ *  theatre gets an entry, empty when nothing is scheduled. Titles prefer the catalog, then the
+ *  showtime's own movieName. */
+export function todaysLineup(
   theatres: Theatre[],
   showtimesByTheatre: Map<number, Showtime[]>,
   catalog: Map<number, MovieMeta>,
   today: string,
-  now: string,
-  newWindowDays = 14,
-): Digest {
-  const theatresByMovie = new Map<number, Set<string>>();
+): Lineup {
+  const lineup: Lineup = new Map();
   for (const t of theatres) {
+    const movies = new Map<number, string>();
     for (const s of showtimesByTheatre.get(t.id) ?? []) {
       const local = s.showDateTimeLocal ?? "";
-      if (s.isCanceled || !local.startsWith(today)) continue;
-      const set = theatresByMovie.get(s.movieId) ?? new Set<string>();
-      set.add(t.name);
-      theatresByMovie.set(s.movieId, set);
+      if (s.isCanceled || !local.startsWith(today) || movies.has(s.movieId)) continue;
+      movies.set(s.movieId, catalog.get(s.movieId)?.name ?? s.movieName ?? `Movie ${s.movieId}`);
+    }
+    lineup.set(t.id, movies);
+  }
+  return lineup;
+}
+
+/**
+ * Daily "what's new" digest for a theatre set. A movie is new at a theatre when it is in today's
+ * lineup there but was not seen playing there on any of the previous `lookbackDays` days — so a
+ * movie mid-run is never repeated, and one that returns after a short gap (a Fathom-style event
+ * on select days) is not re-announced either. Release dates play no part in what counts as new;
+ * they only split the result into limited/special engagements (re-releases, >365 days since
+ * original release — the board's rerelease rule) and everything else.
+ *
+ * A theatre with no memory at all (absent from `seen`) contributes nothing: its first recorded
+ * day is the baseline, not a list of twenty "new" movies.
+ */
+export function buildDigest(
+  theatres: Theatre[],
+  lineup: Lineup,
+  seen: LineupSeen,
+  catalog: Map<number, MovieMeta>,
+  today: string,
+  now: string,
+  lookbackDays = 7,
+): Digest {
+  const cutoff = shiftDate(today, -lookbackDays); // seen on/after this => still just "playing"
+  const byMovie = new Map<number, DigestEntry>();
+  for (const t of theatres) {
+    const seenHere = seen.get(t.id);
+    if (!seenHere) continue;
+    for (const [movieId, title] of lineup.get(t.id) ?? []) {
+      const last = seenHere.get(movieId);
+      if (last !== undefined && last >= cutoff) continue;
+      const entry = byMovie.get(movieId) ?? { id: movieId, title, theatres: [] };
+      if (!entry.theatres.includes(t.name)) entry.theatres.push(t.name);
+      byMovie.set(movieId, entry);
     }
   }
 
   const rereleases: DigestEntry[] = [];
   const newReleases: DigestEntry[] = [];
-  for (const [movieId, theatreSet] of theatresByMovie) {
-    const meta = catalog.get(movieId);
-    const entry: DigestEntry = { id: movieId, title: meta?.name ?? `Movie ${movieId}`, theatres: [...theatreSet].sort() };
-    if (isRerelease(meta?.release, now)) {
-      rereleases.push(entry);
-    } else {
-      const days = daysSinceRelease(meta?.release, now);
-      if (days !== null && days <= newWindowDays) newReleases.push(entry);
-    }
+  for (const entry of byMovie.values()) {
+    entry.theatres.sort();
+    (isRerelease(catalog.get(entry.id)?.release, now) ? rereleases : newReleases).push(entry);
   }
+  const release = (e: DigestEntry) => catalog.get(e.id)?.release ?? "";
   rereleases.sort((a, b) => a.title.localeCompare(b.title));
-  newReleases.sort((a, b) => (catalog.get(b.id)?.release ?? "").localeCompare(catalog.get(a.id)?.release ?? ""));
+  newReleases.sort((a, b) => release(b).localeCompare(release(a)) || a.title.localeCompare(b.title));
   return { rereleases, newReleases };
 }
 

@@ -7,7 +7,7 @@ import pg from "pg";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = join(here, "..", "supabase", "migrations");
-const TABLES = ["profiles", "preferences", "watchlist", "allowed_users", "telegram_link_tokens", "notified", "alerts"];
+const TABLES = ["profiles", "preferences", "watchlist", "allowed_users", "telegram_link_tokens", "notified", "alerts", "lineup_seen"];
 const tick = (b) => (b ? "✓" : "✗");
 
 const url = process.env.SUPABASE_DB_URL;
@@ -86,7 +86,7 @@ async function main() {
   for (const t of TABLES) check(`table public.${t}`, tables.has(t));
   for (const t of TABLES) check(`RLS enabled on ${t}`, rls.get(t) === true);
   for (const t of ["profiles", "preferences", "watchlist", "telegram_link_tokens", "alerts"]) check(`${t} has policies`, (policies.get(t) || 0) > 0);
-  for (const t of ["allowed_users", "notified"]) check(`${t} locked (0 policies)`, (policies.get(t) || 0) === 0);
+  for (const t of ["allowed_users", "notified", "lineup_seen"]) check(`${t} locked (0 policies)`, (policies.get(t) || 0) === 0);
   check("trigger on_auth_user_created on auth.users", triggers.has("on_auth_user_created"));
   check("trigger before_user_invite_check on auth.users", triggers.has("before_user_invite_check"));
   check("trigger profiles_guard_role on profiles", profTriggers.has("profiles_guard_role"));
